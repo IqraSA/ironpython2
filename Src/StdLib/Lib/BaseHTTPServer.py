@@ -395,10 +395,7 @@ class BaseHTTPRequestHandler(SocketServer.StreamRequestHandler):
         """
         self.log_request(code)
         if message is None:
-            if code in self.responses:
-                message = self.responses[code][0]
-            else:
-                message = ''
+            message = self.responses[code][0] if code in self.responses else ''
         if self.request_version != 'HTTP/0.9':
             self.wfile.write("%s %d %s\r\n" %
                              (self.protocol_version, code, message))
@@ -470,26 +467,24 @@ class BaseHTTPRequestHandler(SocketServer.StreamRequestHandler):
 
     def version_string(self):
         """Return the server software version string."""
-        return self.server_version + ' ' + self.sys_version
+        return f'{self.server_version} {self.sys_version}'
 
     def date_time_string(self, timestamp=None):
         """Return the current date and time formatted for a message header."""
         if timestamp is None:
             timestamp = time.time()
         year, month, day, hh, mm, ss, wd, y, z = time.gmtime(timestamp)
-        s = "%s, %02d %3s %4d %02d:%02d:%02d GMT" % (
+        return "%s, %02d %3s %4d %02d:%02d:%02d GMT" % (
                 self.weekdayname[wd],
                 day, self.monthname[month], year,
                 hh, mm, ss)
-        return s
 
     def log_date_time_string(self):
         """Return the current time formatted for logging."""
         now = time.time()
         year, month, day, hh, mm, ss, x, y, z = time.localtime(now)
-        s = "%02d/%3s/%04d %02d:%02d:%02d" % (
+        return "%02d/%3s/%04d %02d:%02d:%02d" % (
                 day, self.monthname[month], year, hh, mm, ss)
-        return s
 
     weekdayname = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 

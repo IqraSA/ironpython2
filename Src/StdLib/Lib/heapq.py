@@ -391,8 +391,7 @@ def merge(*iterables):
         # fast case when only a single iterator remains
         v, itnum, next = h[0]
         yield v
-        for v in next.__self__:
-            yield v
+        yield from next.__self__
 
 # Extend the implementations of nsmallest and nlargest to use a key= argument
 _nsmallest = nsmallest

@@ -44,18 +44,12 @@ def yiq_to_rgb(y, i, q):
     r = y + 0.948262*i + 0.624013*q
     g = y - 0.276066*i - 0.639810*q
     b = y - 1.105450*i + 1.729860*q
-    if r < 0.0:
-        r = 0.0
-    if g < 0.0:
-        g = 0.0
-    if b < 0.0:
-        b = 0.0
-    if r > 1.0:
-        r = 1.0
-    if g > 1.0:
-        g = 1.0
-    if b > 1.0:
-        b = 1.0
+    r = max(r, 0.0)
+    g = max(g, 0.0)
+    b = max(b, 0.0)
+    r = min(r, 1.0)
+    g = min(g, 1.0)
+    b = min(b, 1.0)
     return (r, g, b)
 
 
@@ -90,10 +84,7 @@ def rgb_to_hls(r, g, b):
 def hls_to_rgb(h, l, s):
     if s == 0.0:
         return l, l, l
-    if l <= 0.5:
-        m2 = l * (1.0+s)
-    else:
-        m2 = l+s-(l*s)
+    m2 = l * (1.0+s) if l <= 0.5 else l+s-(l*s)
     m1 = 2.0*l - m2
     return (_v(m1, m2, h+ONE_THIRD), _v(m1, m2, h), _v(m1, m2, h-ONE_THIRD))
 
@@ -140,7 +131,7 @@ def hsv_to_rgb(h, s, v):
     p = v*(1.0 - s)
     q = v*(1.0 - s*f)
     t = v*(1.0 - s*(1.0-f))
-    i = i%6
+    i %= 6
     if i == 0:
         return v, t, p
     if i == 1:

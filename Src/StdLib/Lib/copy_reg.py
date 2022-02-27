@@ -110,10 +110,7 @@ def _slotnames(cls):
 
     # Not cached -- calculate the value
     names = []
-    if not hasattr(cls, "__slots__"):
-        # This class has no slots
-        pass
-    else:
+    if hasattr(cls, "__slots__"):
         # Slots found -- gather slot names from all base classes
         for c in cls.__mro__:
             if "__slots__" in c.__dict__:
@@ -125,10 +122,8 @@ def _slotnames(cls):
                     # special descriptors
                     if name in ("__dict__", "__weakref__"):
                         continue
-                    # mangled names
                     elif name.startswith('__') and not name.endswith('__'):
-                        stripped = c.__name__.lstrip('_')
-                        if stripped:
+                        if stripped := c.__name__.lstrip('_'):
                             names.append('_%s%s' % (stripped, name))
                         else:
                             names.append(name)

@@ -50,15 +50,15 @@ class _AssertRaisesContext(object):
                 raise self.failureException('"%s" does not match "%s"' %
                         (expected_regexp.pattern, str(exc_value)))
         elif self.expected_message:
-            if partial:
-                if self.expected_message in str(exc_value):
-                    raise self.failureException("'%s' does not match '%s'" %
-                            (self.expected_message, str(exc_value)))
-            else:
-                if self.expected_message != str(exc_value):
-                    raise self.failureException("'%s' does not match '%s'" %
-                            (self.expected_message, str(exc_value)))
-        elif not (self.expected_number is None):
+            if (
+                partial
+                and self.expected_message in str(exc_value)
+                or not partial
+                and self.expected_message != str(exc_value)
+            ):
+                raise self.failureException("'%s' does not match '%s'" %
+                        (self.expected_message, str(exc_value)))
+        elif self.expected_number is not None:
             if self.expected_number != exc_value.errno:
                 raise self.failureException("'%d' does not match '%d'" % 
                             (self.expected_number, exc_value.errno))
@@ -96,11 +96,11 @@ class stdout_trapper(object):
 class path_modifier(object):
     def __init__(self, *directories):
         self._directories = directories
-        self._old_path = [x for x in sys.path]
+        self._old_path = list(sys.path)
     def __enter__(self):
-        sys.path = [x for x in self._directories]
+        sys.path = list(self._directories)
     def __exit__(self, *args):
-        sys.path = [x for x in self._old_path]
+        sys.path = list(self._old_path)
 
 def skipUnlessIronPython():
     """Skips the test unless currently running on IronPython"""
@@ -131,12 +131,12 @@ def retryOnFailure(f, times=MAX_FAILURE_RETRY, *args, **kwargs):
 def _find_root():
     test_dirs = ['Src', 'Build', 'Package', 'Tests', 'Util']
     root = os.getcwd()
-    test = all([os.path.exists(os.path.join(root, x)) for x in test_dirs])
+    test = all(os.path.exists(os.path.join(root, x)) for x in test_dirs)
     while not test:
         last_root = root
         root = os.path.dirname(root)
         if root == last_root: raise Exception("Root not found")
-        test = all([os.path.exists(os.path.join(root, x)) for x in test_dirs])
+        test = all(os.path.exists(os.path.join(root, x)) for x in test_dirs)
     return root
 
 _root = _find_root()
@@ -204,7 +204,7 @@ class IronPythonTestCase(unittest.TestCase, FileUtil, ProcessUtil):
             gc.collect()
         else:
             import System
-            for i in xrange(100):
+            for _ in xrange(100):
                 System.GC.Collect()
             System.GC.WaitForPendingFinalizers()
 
@@ -284,7 +284,8 @@ class IronPythonTestCase(unittest.TestCase, FileUtil, ProcessUtil):
             self.assertEqual(a[x], b[x])
 
     def assertUnreachable(self, msg=None):
-        if msg: self.fail("Unreachable code reached: " + msg)
+        if msg:
+            self.fail(f"Unreachable code reached: {msg}")
         else: self.fail("Unreachable code reached")
 
     def assertWarns(self, warning, callable, *args, **kwds):
@@ -314,11 +315,11 @@ class IronPythonTestCase(unittest.TestCase, FileUtil, ProcessUtil):
         expected = expected.split(newline)
         received = received.split(newline)
         for x in received:
-            if not x in expected:
-                self.fail('Extra doc string: ' + x)
+            if x not in expected:
+                self.fail(f'Extra doc string: {x}')
             index = expected.index(x)
             del expected[index]
-        
+
         if expected: self.fail('Missing doc strings: ' + expected.join(', '))
 
     def assertInAndNot(self, test_list, in_list, not_in_list):
@@ -329,8 +330,8 @@ class IronPythonTestCase(unittest.TestCase, FileUtil, ProcessUtil):
 
     # environment variables
     def get_environ_variable(self, key):
-        l = [y for x, y in os.environ.items() if x.lower() == key.lower()]
-        if l: return l[0]
+        if l := [y for x, y in os.environ.items() if x.lower() == key.lower()]:
+            return l[0]
         return None
 
     # file paths

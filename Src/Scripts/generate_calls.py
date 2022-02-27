@@ -44,16 +44,11 @@ def gen_args_call(nparams, *prefix):
         args = args + comma +("arg%d" % i)
         comma = ", "
     if prefix:
-        if args:
-            args = prefix[0] + ', ' + args
-        else:
-            args = prefix[0]
+        args = f'{prefix[0]}, {args}' if args else prefix[0]
     return args
 
 def gen_args_array(nparams):
-    args = gen_args_call(nparams)
-    if args: return "{ " + args + " }"
-    else: return "{ }"
+    return "{ " + args + " }" if (args := gen_args_call(nparams)) else "{ }"
 
 def gen_callargs(nparams):
     args = ""
@@ -250,8 +245,7 @@ def gen_recursion_delegate_switch(cw):
         cw.dedent()
     
 def get_call_type(postfix):
-    if postfix == "": return "CallType.None"
-    else: return "CallType.ImplicitInstance"
+    return "CallType.None" if postfix == "" else "CallType.ImplicitInstance"
 
 
 def make_call_to_target(cw, index, postfix, extraArg):
@@ -321,9 +315,9 @@ def gen_params_callN(cw, any):
     cw.write("Array.Copy(args, 0, newArgs, 1, args.Length);")
     cw.write("return Call(newArgs);")
     cw.else_block()
-    
+
     # need to call w/ Context, Instance, *args
-    
+
     if any:
         cw.enter_block("switch (args.Length)")
         for i in xrange(MAX_ARGS-1):
@@ -340,15 +334,13 @@ def gen_params_callN(cw, any):
         cw.write("return targetN(newArgs);")
         cw.exit_block()
         cw.write("throw BadArgumentError(args.Length);")
-        cw.exit_block()
     else:
         cw.write("object [] newArgs = new object[args.Length+2];")
         cw.write("newArgs[0] = context;")
         cw.write("newArgs[1] = Instance;")
         cw.write("Array.Copy(args, 0, newArgs, 2, args.Length);")
         cw.write("return target(newArgs);")
-        cw.exit_block()
-        
+    cw.exit_block()
     cw.exit_block()
     cw.write("")
 

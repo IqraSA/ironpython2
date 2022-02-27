@@ -23,10 +23,7 @@ def inherits(t, p):
 def get_ast(assembly, roots):
     import clr
 
-    sets = {}
-    for root in roots:
-        sets[root] = set()
-
+    sets = {root: set() for root in roots}
     for node in assembly.GetTypes():
         # skip abstract types
         if node.IsAbstract: continue
@@ -52,7 +49,7 @@ def gen_walker(cw, nodes, method, value):
         space = 1
 
 def get_python_nodes():
-    nodes = get_ast(
+    return get_ast(
         clr.LoadAssemblyByName("IronPython"),
         [
             "IronPython.Compiler.Ast.Expression",
@@ -60,7 +57,6 @@ def get_python_nodes():
             "IronPython.Compiler.Ast.Node"
         ]
     )
-    return nodes
 
 def gen_python_walker(cw):
     gen_walker(cw, get_python_nodes(), "public virtual", "true")

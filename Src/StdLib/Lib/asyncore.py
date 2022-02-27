@@ -69,9 +69,7 @@ def _strerror(err):
     try:
         return os.strerror(err)
     except (ValueError, OverflowError, NameError):
-        if err in errorcode:
-            return errorcode[err]
-        return "Unknown error %s" %err
+        return errorcode[err] if err in errorcode else "Unknown error %s" %err
 
 class ExitNow(Exception):
     pass
@@ -263,7 +261,7 @@ class dispatcher:
             self.socket = None
 
     def __repr__(self):
-        status = [self.__class__.__module__+"."+self.__class__.__name__]
+        status = [f'{self.__class__.__module__}.{self.__class__.__name__}']
         if self.accepting and self.addr:
             status.append('listening')
         elif self.connected:
@@ -349,11 +347,10 @@ class dispatcher:
         or err == EINVAL and os.name in ('nt', 'ce'):
             self.addr = address
             return
-        if err in (0, EISCONN):
-            self.addr = address
-            self.handle_connect_event()
-        else:
+        if err not in (0, EISCONN):
             raise socket.error(err, errorcode[err])
+        self.addr = address
+        self.handle_connect_event()
 
     def accept(self):
         # XXX can return either an address pair or None
@@ -462,9 +459,8 @@ class dispatcher:
             # We will pretend it didn't happen.
             return
 
-        if not self.connected:
-            if self.connecting:
-                self.handle_connect_event()
+        if not self.connected and self.connecting:
+            self.handle_connect_event()
         self.handle_write()
 
     def handle_expt_event(self):

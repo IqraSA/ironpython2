@@ -47,15 +47,15 @@ if sys.platform=="win32":
         import win32com.client
         is_pywin32 = True
         if sys.prefix not in nt.environ["Path"]:
-            nt.environ["Path"] += ";" + sys.prefix
+            nt.environ["Path"] += f";{sys.prefix}"
     except:
         pass
-    
-    
+
+
 
 #------------------------------------------------------------------------------
 #--GLOBALS
-    
+
 windir = get_environ_variable("windir")
 agentsvr_path = path_combine(windir, r"msagent\agentsvr.exe")
 scriptpw_path = path_combine(windir, r"system32\scriptpw.dll")
@@ -126,7 +126,7 @@ def shallow_copy(in_list):
     '''
     We do not necessarily have access to the copy module.
     '''
-    return [x for x in in_list]
+    return list(in_list)
 
 def pos_num_helper(clr_type):
     return [
@@ -154,174 +154,154 @@ def overflow_num_helper(clr_type):
             ]   
     
 def valueErrorTrigger(in_type):
-    ret_val = {}
-    
-    ############################################################
-    #Is there anything in Python not being able to evaluate to a bool?
-    ret_val["VARIANT_BOOL"] =  [ ]
-                     
-    ############################################################              
-    ret_val["BYTE"] = shallow_copy(NON_NUMBER_VALUES)
+    ret_val = {"VARIANT_BOOL": [], "BYTE": shallow_copy(NON_NUMBER_VALUES)}
+
     ret_val["BYTE"] += COMPLEX_VALUES
-      
+
     if sys.platform=="win32":
         ret_val["BYTE"] += FPN_VALUES  #Merlin 323751
         ret_val["BYTE"] = [x for x in ret_val["BYTE"] if type(x) not in [unicode, str]] #INCOMPAT BUG - should be ValueError
         ret_val["BYTE"] = [x for x in ret_val["BYTE"] if not isinstance(x, KOld)] #INCOMPAT BUG - should be AttributeError
-      
-        
+
+
     ############################################################
     ret_val["BSTR"] = shallow_copy(NON_NUMBER_VALUES)
     ret_val["BSTR"] += COMPLEX_VALUES
-    
+
     if sys.platform=="win32":
         ret_val["BSTR"] = [] #INCOMPAT BUG
-    
+
     #strip out string values
     ret_val["BSTR"] = [x for x in ret_val["BSTR"] if type(x) is not str and type(x) is not KNew and type(x) is not KOld and type(x) is not object]
-  
+
     ############################################################  
     ret_val["CHAR"] =  shallow_copy(NON_NUMBER_VALUES)
     ret_val["CHAR"] += COMPLEX_VALUES
     if sys.platform=="win32":
         ret_val["CHAR"] += FPN_VALUES #Merlin 323751
-    
+
     ############################################################
     ret_val["FLOAT"] = shallow_copy(NON_NUMBER_VALUES)
     ret_val["FLOAT"] += COMPLEX_VALUES
-    
+
     if sys.platform=="win32":
             ret_val["FLOAT"] += UINT_VALUES + INT_VALUES #COMPAT BUG
-    
+
     ############################################################
     ret_val["DOUBLE"] = shallow_copy(ret_val["FLOAT"])
-    
+
     ############################################################            
     ret_val["USHORT"] =  shallow_copy(NON_NUMBER_VALUES)
     ret_val["USHORT"] += COMPLEX_VALUES
-    
+
     if sys.platform=="win32":
             ret_val["USHORT"] += FPN_VALUES #Merlin 323751
-    
+
     ############################################################  
     ret_val["ULONG"] = shallow_copy(ret_val["USHORT"])
-    
+
     ############################################################           
     ret_val["ULONGLONG"] =  shallow_copy(ret_val["ULONG"])
-    
+
     ############################################################  
     ret_val["SHORT"] =  shallow_copy(NON_NUMBER_VALUES)
     ret_val["SHORT"] += COMPLEX_VALUES
-      
+
     if sys.platform=="win32":
             ret_val["SHORT"] += FPN_VALUES  #Merlin 323751
-    
+
     ############################################################  
     ret_val["LONG"] =  shallow_copy(ret_val["SHORT"])
-    
+
     ############################################################             
     ret_val["LONGLONG"] =  shallow_copy(ret_val["LONG"])
-    
+
     ############################################################
     return ret_val[in_type]
     
 
 def typeErrorTrigger(in_type):
-    ret_val = {}
-    
-    ############################################################
-    #Is there anything in Python not being able to evaluate to a bool?
-    ret_val["VARIANT_BOOL"] =  [ ]
-                     
-    ############################################################              
-    ret_val["BYTE"] = []
-    
-    ############################################################
-    ret_val["BSTR"] = []
+    ret_val = {"VARIANT_BOOL": [], "BYTE": [], "BSTR": []}
+
     #strip out string values
     ret_val["BSTR"] = [x for x in ret_val["BSTR"] if type(x) is not str]
-  
+
     ############################################################  
     ret_val["CHAR"] =  []
-    
+
     ############################################################
     ret_val["FLOAT"] = []
-    
+
     ############################################################
     ret_val["DOUBLE"] = []
-    
+
     ############################################################            
     ret_val["USHORT"] =  []
-    
-    
+
+
     ############################################################  
     ret_val["ULONG"] = []
-    
+
     ############################################################           
     ret_val["ULONGLONG"] =  []
-    
+
     ############################################################  
     ret_val["SHORT"] =  []
-    
+
     ############################################################  
     ret_val["LONG"] =  []
-    
+
     ############################################################             
     ret_val["LONGLONG"] =  []
-    
+
     ############################################################
     return ret_val[in_type]
     
 
 def overflowErrorTrigger(in_type):
-    ret_val = {}
-    
-    ############################################################
-    ret_val["VARIANT_BOOL"] =  []
-                     
-    ############################################################              
-    ret_val["BYTE"] = []
+    ret_val = {"VARIANT_BOOL": [], "BYTE": []}
+
     ret_val["BYTE"] += overflow_num_helper(System.Byte)
-        
+
     ############################################################
     #Doesn't seem possible to create a value (w/o 1st overflowing
     #in Python) to pass to the COM method which will overflow.
     ret_val["BSTR"] = [] #["0123456789" * 1234567890]
-    
+
     ############################################################ 
     ret_val["CHAR"] = []
     ret_val["CHAR"] +=  overflow_num_helper(System.SByte)
-    
+
     ############################################################
-    ret_val["FLOAT"] = []  
+    ret_val["FLOAT"] = []
     ret_val["FLOAT"] += overflow_num_helper(System.Double)
-    
+
     #Shouldn't be possible to overflow a double.
     ret_val["DOUBLE"] =  []
-    
-    
+
+
     ############################################################            
     ret_val["USHORT"] =  []
     ret_val["USHORT"] += overflow_num_helper(System.UInt16)
-      
+
     ret_val["ULONG"] =  []
     ret_val["ULONG"] +=  overflow_num_helper(System.UInt32)
-               
+
     ret_val["ULONGLONG"] =  []
     # Dev10 475426
     #ret_val["ULONGLONG"] +=  overflow_num_helper(System.UInt64)
-      
+
     ret_val["SHORT"] =  []
     ret_val["SHORT"] += overflow_num_helper(System.Int16)
-      
+
     ret_val["LONG"] =  []
     # Dev10 475426
     #ret_val["LONG"] += overflow_num_helper(System.Int32)
-                
+
     ret_val["LONGLONG"] =  []
     # Dev10 475426
     #ret_val["LONGLONG"] += overflow_num_helper(System.Int64)
-    
+
     ############################################################
     return ret_val[in_type]    
     
@@ -333,86 +313,83 @@ def pythonToCOM(in_type):
     turn are of different types (compatible with in_type), but equivalent to 
     one another.
     '''
-    ret_val = {}
-    
     ############################################################
     temp_funcs = [int, bool, System.Boolean]   # long, Dev10 475426
     temp_values = [ 0, 1, True, False]
-    
-    ret_val["VARIANT_BOOL"] =  [ [y(x) for y in temp_funcs] for x in temp_values]
-                     
+
+    ret_val = {"VARIANT_BOOL": [[y(x) for y in temp_funcs] for x in temp_values]}
     ############################################################              
     temp_funcs = [System.Byte]
     temp_values = pos_num_helper(System.Byte)
-    
+
     ret_val["BYTE"] =  [ [y(x) for y in temp_funcs] for x in temp_values]
 
     ############################################################
     temp_funcs = [  str, unicode, # Py_Str, Py_System_String,  
                     System.String ]
     temp_values = shallow_copy(STRING_VALUES)
-    
+
     ret_val["BSTR"] = [ [y(x) for y in temp_funcs] for x in temp_values]
-  
+
     ############################################################  
     temp_funcs = [System.SByte]
     temp_values = pos_num_helper(System.SByte)            
-    
+
     ret_val["CHAR"] =  [ [y(x) for y in temp_funcs] for x in temp_values]
 
     ############################################################
     temp_funcs = [  float, # Py_Float, 
                     System.Single]
     ret_val["FLOAT"] = [ [y(x) for y in temp_funcs] for x in FPN_VALUES]
-    
+
     ############################################################
     temp_funcs = [  float, System.Double]  # Py_Double, Py_System_Double, 
     temp_values = [-1.0e+308,  1.0e308] + FPN_VALUES
 
     ret_val["DOUBLE"] = [ [y(x) for y in temp_funcs] for x in temp_values]
     ret_val["DOUBLE"] += ret_val["FLOAT"]
-    
+
     ############################################################  
     temp_funcs = [int, System.UInt16]  # Py_UShort, 
     temp_values = pos_num_helper(System.UInt16)
-    
+
     ret_val["USHORT"] =  [ [y(x) for y in temp_funcs] for x in temp_values]
-    
+
     ############################################################  
     temp_funcs = [int, System.UInt32]  # Py_ULong, 
     temp_values = pos_num_helper(System.UInt32) + pos_num_helper(System.UInt16)
-        
+
     ret_val["ULONG"] =  [ [y(x) for y in temp_funcs] for x in temp_values]
     ret_val["ULONG"] += ret_val["USHORT"]
-    
+
     ############################################################  
     temp_funcs = [int, long, System.UInt64]  # Py_ULongLong, 
     temp_values = pos_num_helper(System.UInt64) + pos_num_helper(System.UInt32) + pos_num_helper(System.UInt16)
-                
+
     ret_val["ULONGLONG"] =  [ [y(x) for y in temp_funcs] for x in temp_values]
     ret_val["ULONGLONG"] += ret_val["ULONG"]
-    
+
     ############################################################  
     temp_funcs = [int, System.Int16]  # Py_Short, 
     temp_values = pos_num_helper(System.Int16)
-                
+
     ret_val["SHORT"] =  [ [y(x) for y in temp_funcs] for x in temp_values]
-    
+
     ############################################################  
     temp_funcs = [int, System.Int32] # Py_Long, Dev10 475426
     temp_values = pos_num_helper(System.Int32) + pos_num_helper(System.Int16)
-    
+
     ret_val["LONG"] =  [ [y(x) for y in temp_funcs] for x in temp_values]
     ret_val["LONG"] += ret_val["SHORT"]
-    
-    
+
+
     ############################################################  
     temp_funcs = [int, long, System.Int64] # Py_LongLong, Dev10 475426
     temp_values = pos_num_helper(System.Int64) + pos_num_helper(System.Int32) + pos_num_helper(System.Int16)
-                
+
     ret_val["LONGLONG"] =  [ [y(x) for y in temp_funcs] for x in temp_values]
     ret_val["LONGLONG"] += ret_val["LONG"]
-    
+
     ############################################################
     return ret_val[in_type]
     
@@ -501,16 +478,16 @@ def IsExcelInstalled():
     from System.IO import File
 
     excel = None
-    
+
     #Office 11 or 12 are both OK for this test. Office 12 is preferred.
     excel = Registry.LocalMachine.OpenSubKey("Software\\Microsoft\\Office\\12.0\\Excel\\InstallRoot")
-    if excel==None:
+    if excel is None:
         excel = Registry.LocalMachine.OpenSubKey("Software\\Microsoft\\Office\\11.0\\Excel\\InstallRoot")
-    
+
     #sanity check
-    if excel==None:
+    if excel is None:
         return False
-    
+
     #make sure it's really installed on disk
     excel_path = excel.GetValue("Path") + "excel.exe"
     return File.Exists(excel_path)
@@ -521,16 +498,16 @@ def IsWordInstalled():
     from System.IO import File
 
     word  = None
-    
+
     #Office 11 or 12 are both OK for this test. Office 12 is preferred.
     word = Registry.LocalMachine.OpenSubKey("Software\\Microsoft\\Office\\12.0\\Word\\InstallRoot")
-    if word==None:
+    if word is None:
         word= Registry.LocalMachine.OpenSubKey("Software\\Microsoft\\Office\\11.0\\Word\\InstallRoot")
-    
+
     #sanity check
-    if word==None:
+    if word is None:
         return False
-    
+
     #make sure it's really installed on disk
     word_path = word.GetValue("Path") + "winword.exe"
     return File.Exists(word_path)
@@ -564,13 +541,12 @@ def CreateAgentServer():
 #------------------------------------------------------------------------------
 def CreateDlrComServer():
     com_type_name = "DlrComLibrary.DlrComServer"
-    
-    if is_cli:
-        com_obj = getRCWFromProgID(com_type_name)
-    else:
-        com_obj = win32com.client.Dispatch(com_type_name)
-        
-    return com_obj    
+
+    return (
+        getRCWFromProgID(com_type_name)
+        if is_cli
+        else win32com.client.Dispatch(com_type_name)
+    )    
 
 #------------------------------------------------------------------------------    
 def getTypeFromProgID(prog_id):

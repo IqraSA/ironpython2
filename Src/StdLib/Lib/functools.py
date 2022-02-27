@@ -53,23 +53,35 @@ def wraps(wrapped,
 def total_ordering(cls):
     """Class decorator that fills in missing ordering methods"""
     convert = {
-        '__lt__': [('__gt__', lambda self, other: not (self < other or self == other)),
-                   ('__le__', lambda self, other: self < other or self == other),
-                   ('__ne__', lambda self, other: not self == other),
-                   ('__ge__', lambda self, other: not self < other)],
-        '__le__': [('__ge__', lambda self, other: not self <= other or self == other),
-                   ('__lt__', lambda self, other: self <= other and not self == other),
-                   ('__ne__', lambda self, other: not self == other),
-                   ('__gt__', lambda self, other: not self <= other)],
-        '__gt__': [('__lt__', lambda self, other: not (self > other or self == other)),
-                   ('__ge__', lambda self, other: self > other or self == other),
-                   ('__ne__', lambda self, other: not self == other),
-                   ('__le__', lambda self, other: not self > other)],
-        '__ge__': [('__le__', lambda self, other: (not self >= other) or self == other),
-                   ('__gt__', lambda self, other: self >= other and not self == other),
-                   ('__ne__', lambda self, other: not self == other),
-                   ('__lt__', lambda self, other: not self >= other)]
+        '__lt__': [
+            ('__gt__', lambda self, other: self >= other and self != other),
+            ('__le__', lambda self, other: self < other or self == other),
+            ('__ne__', lambda self, other: self != other),
+            ('__ge__', lambda self, other: not self < other),
+        ],
+        '__le__': [
+            ('__ge__', lambda self, other: not self <= other or self == other),
+            ('__lt__', lambda self, other: self <= other and self != other),
+            ('__ne__', lambda self, other: self != other),
+            ('__gt__', lambda self, other: not self <= other),
+        ],
+        '__gt__': [
+            ('__lt__', lambda self, other: self <= other and self != other),
+            ('__ge__', lambda self, other: self > other or self == other),
+            ('__ne__', lambda self, other: self != other),
+            ('__le__', lambda self, other: not self > other),
+        ],
+        '__ge__': [
+            (
+                '__le__',
+                lambda self, other: (not self >= other) or self == other,
+            ),
+            ('__gt__', lambda self, other: self >= other and self != other),
+            ('__ne__', lambda self, other: self != other),
+            ('__lt__', lambda self, other: not self >= other),
+        ],
     }
+
     defined_methods = set(dir(cls))
     roots = defined_methods & set(convert)
     if not roots:

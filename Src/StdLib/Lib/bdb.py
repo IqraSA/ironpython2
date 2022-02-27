@@ -27,7 +27,7 @@ class Bdb:
         self.frame_returning = None
 
     def canonic(self, filename):
-        if filename == "<" + filename[1:-1] + ">":
+        if filename == f"<{filename[1:-1]}>":
             return filename
         canonic = self.fncache.get(filename)
         if not canonic:
@@ -102,10 +102,7 @@ class Bdb:
     # definition of stopping and breakpoints.
 
     def is_skipped_module(self, module_name):
-        for pattern in self.skip:
-            if fnmatch.fnmatch(module_name, pattern):
-                return True
-        return False
+        return any(fnmatch.fnmatch(module_name, pattern) for pattern in self.skip)
 
     def stop_here(self, frame):
         # (CT) stopframe may now also be None, see dispatch_call.
@@ -114,9 +111,7 @@ class Bdb:
                self.is_skipped_module(frame.f_globals.get('__name__')):
             return False
         if frame is self.stopframe:
-            if self.stoplineno == -1:
-                return False
-            return frame.f_lineno >= self.stoplineno
+            return False if self.stoplineno == -1 else frame.f_lineno >= self.stoplineno
         while frame is not None and frame is not self.stopframe:
             if frame is self.botframe:
                 return True
@@ -125,25 +120,24 @@ class Bdb:
 
     def break_here(self, frame):
         filename = self.canonic(frame.f_code.co_filename)
-        if not filename in self.breaks:
+        if filename not in self.breaks:
             return False
         lineno = frame.f_lineno
-        if not lineno in self.breaks[filename]:
+        if lineno not in self.breaks[filename]:
             # The line itself has no breakpoint, but maybe the line is the
             # first line of a function with breakpoint set by function name.
             lineno = frame.f_code.co_firstlineno
-            if not lineno in self.breaks[filename]:
-                return False
+        if lineno not in self.breaks[filename]:
+            return False
 
         # flag says ok to delete temp. bp
         (bp, flag) = effective(filename, lineno, frame)
-        if bp:
-            self.currentbp = bp.number
-            if (flag and bp.temporary):
-                self.do_clear(str(bp.number))
-            return True
-        else:
+        if not bp:
             return False
+        self.currentbp = bp.number
+        if (flag and bp.temporary):
+            self.do_clear(str(bp.number))
+        return True
 
     def do_clear(self, arg):
         raise NotImplementedError, "subclass of bdb must implement do_clear()"
@@ -171,7 +165,6 @@ class Bdb:
         exc_type, exc_value, exc_traceback = exc_info
         """This method is called if an exception occurs,
         but only if we are to stop at or just below this level."""
-        pass
 
     def _set_stopinfo(self, stopframe, returnframe, stoplineno=0):
         self.stopframe = stopframe
@@ -256,10 +249,10 @@ class Bdb:
         if not line:
             return 'Line %s:%d does not exist' % (filename,
                                    lineno)
-        if not filename in self.breaks:
+        if filename not in self.breaks:
             self.breaks[filename] = []
         list = self.breaks[filename]
-        if not lineno in list:
+        if lineno not in list:
             list.append(lineno)
         bp = Breakpoint(filename, lineno, temporary, cond, funcname)
 
@@ -271,7 +264,7 @@ class Bdb:
 
     def clear_break(self, filename, lineno):
         filename = self.canonic(filename)
-        if not filename in self.breaks:
+        if filename not in self.breaks:
             return 'There are no breakpoints in %s' % filename
         if lineno not in self.breaks[filename]:
             return 'There is no breakpoint at %s:%d' % (filename,
@@ -298,7 +291,7 @@ class Bdb:
 
     def clear_all_file_breaks(self, filename):
         filename = self.canonic(filename)
-        if not filename in self.breaks:
+        if filename not in self.breaks:
             return 'There are no breakpoints in %s' % filename
         for line in self.breaks[filename]:
             blist = Breakpoint.bplist[filename, line]
@@ -327,10 +320,7 @@ class Bdb:
 
     def get_file_breaks(self, filename):
         filename = self.canonic(filename)
-        if filename in self.breaks:
-            return self.breaks[filename]
-        else:
-            return []
+        return self.breaks[filename] if filename in self.breaks else []
 
     def get_all_breaks(self):
         return self.breaks
@@ -363,24 +353,15 @@ class Bdb:
         frame, lineno = frame_lineno
         filename = self.canonic(frame.f_code.co_filename)
         s = '%s(%r)' % (filename, lineno)
-        if frame.f_code.co_name:
-            s = s + frame.f_code.co_name
-        else:
-            s = s + "<lambda>"
-        if '__args__' in frame.f_locals:
-            args = frame.f_locals['__args__']
-        else:
-            args = None
-        if args:
-            s = s + repr.repr(args)
-        else:
-            s = s + '()'
+        s = s + frame.f_code.co_name if frame.f_code.co_name else f'{s}<lambda>'
+        args = frame.f_locals['__args__'] if '__args__' in frame.f_locals else None
+        s = s + repr.repr(args) if args else f'{s}()'
         if '__return__' in frame.f_locals:
             rv = frame.f_locals['__return__']
-            s = s + '->'
+            s = f'{s}->'
             s = s + repr.repr(rv)
-        line = linecache.getline(filename, lineno, frame.f_globals)
-        if line: s = s + lprefix + line.strip()
+        if line := linecache.getline(filename, lineno, frame.f_globals):
+            s = s + lprefix + line.strip()
         return s
 
     # The following two methods can be called by clients to use
@@ -508,23 +489,18 @@ class Breakpoint:
     def bpprint(self, out=None):
         if out is None:
             out = sys.stdout
-        if self.temporary:
-            disp = 'del  '
-        else:
-            disp = 'keep '
-        if self.enabled:
-            disp = disp + 'yes  '
-        else:
-            disp = disp + 'no   '
+        disp = ('del  ' if self.temporary else 'keep ') + (
+            'yes  ' if self.enabled else 'no   '
+        )
+
         print >>out, '%-4dbreakpoint   %s at %s:%d' % (self.number, disp,
                                                        self.file, self.line)
         if self.cond:
             print >>out, '\tstop only if %s' % (self.cond,)
         if self.ignore:
             print >>out, '\tignore next %d hits' % (self.ignore)
-        if (self.hits):
-            if (self.hits > 1): ss = 's'
-            else: ss = ''
+        if self.hits:
+            ss = 's' if (self.hits > 1) else ''
             print >>out, ('\tbreakpoint already hit %d time%s' %
                           (self.hits, ss))
 
@@ -533,13 +509,7 @@ class Breakpoint:
 def checkfuncname(b, frame):
     """Check whether we should break here because of `b.funcname`."""
     if not b.funcname:
-        # Breakpoint was set via line number.
-        if b.line != frame.f_lineno:
-            # Breakpoint was set at a line with a def statement and the function
-            # defined is called: don't break.
-            return False
-        return True
-
+        return b.line == frame.f_lineno
     # Breakpoint set via function name.
 
     if frame.f_code.co_name != b.funcname:
@@ -567,7 +537,7 @@ def effective(file, line, frame):
 
     """
     possibles = Breakpoint.bplist[file,line]
-    for i in range(0, len(possibles)):
+    for i in range(len(possibles)):
         b = possibles[i]
         if b.enabled == 0:
             continue
@@ -576,15 +546,12 @@ def effective(file, line, frame):
         # Count every hit when bp is enabled
         b.hits = b.hits + 1
         if not b.cond:
-            # If unconditional, and ignoring,
-            # go on to next, else break
-            if b.ignore > 0:
-                b.ignore = b.ignore -1
-                continue
-            else:
+            if b.ignore <= 0:
                 # breakpoint and marker that's ok
                 # to delete if temporary
                 return (b,1)
+            b.ignore = b.ignore -1
+            continue
         else:
             # Conditional bp.
             # Ignore count applies only to those bpt hits where the

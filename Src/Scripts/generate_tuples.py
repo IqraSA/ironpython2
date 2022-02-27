@@ -9,8 +9,7 @@ def make_arg_list(size, name ='T%(id)d'):
     return ', '.join([name % {'id': x} for x in range(size)])
 
 def get_base(size):
-    if size: return 'MutableTuple<' + make_arg_list(size) + '>'
-    return 'MutableTuple'
+    return f'MutableTuple<{make_arg_list(size)}>' if size else 'MutableTuple'
 
 def gen_generic_args(i, type='object'):
     return ', '.join([type]*i)
@@ -35,7 +34,7 @@ def gen_tuple(cw, size, prevSize):
 
     cw.enter_block('public override object GetValue(int index)')
     cw.enter_block('switch(index)')
-    for i in range(0, size):
+    for i in range(size):
         cw.write('case %d: return Item%03d;' % (i, i))
     cw.write('default: throw new ArgumentOutOfRangeException(nameof(index));')
     cw.exit_block()
@@ -44,7 +43,7 @@ def gen_tuple(cw, size, prevSize):
     cw.write('')
     cw.enter_block('public override void SetValue(int index, object value)')
     cw.enter_block('switch(index)')
-    for i in range(0, size):
+    for i in range(size):
         cw.write('case %d: Item%03d = (T%d)value; break;' % (i, i, i))
     cw.write('default: throw new ArgumentOutOfRangeException(nameof(index));')
     cw.exit_block()

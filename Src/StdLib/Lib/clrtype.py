@@ -77,8 +77,8 @@ class ClrType(type):
                 if item.fget:
                     if not self.is_typed_method(item.fget): continue
                     prop_type = item.fget.return_type
+                elif not self.is_typed_method(item.fset): continue
                 else:
-                    if not self.is_typed_method(item.fset): continue
                     prop_type = item.fset.arg_types[0]
                 validate_clr_types(prop_type)
                 clr_prop_type = clr.GetClrType(prop_type)
@@ -116,14 +116,20 @@ class ClrType(type):
             elif isinstance(item, staticmethod):
                 function, is_static = getattr(self, item_name), True
             elif isinstance(item, property):
-                if item.fget and self.is_typed_method(item.fget):
-                    if item.fget.func_name == item_name:
-                        # The property hides the getter. So yield the getter
-                        yield TypedFunction(item.fget, False, item_name, None)
-                if item.fset and self.is_typed_method(item.fset):
-                    if item.fset.func_name == item_name:
-                        # The property hides the setter. So yield the setter
-                        yield TypedFunction(item.fset, False, None, item_name)
+                if (
+                    item.fget
+                    and self.is_typed_method(item.fget)
+                    and item.fget.func_name == item_name
+                ):
+                    # The property hides the getter. So yield the getter
+                    yield TypedFunction(item.fget, False, item_name, None)
+                if (
+                    item.fset
+                    and self.is_typed_method(item.fset)
+                    and item.fset.func_name == item_name
+                ):
+                    # The property hides the setter. So yield the setter
+                    yield TypedFunction(item.fset, False, None, item_name)
                 continue
             else:
                 continue
@@ -159,7 +165,7 @@ class ClrType(type):
 
     def get_clr_type_name(self):
         if hasattr(self, "_clrnamespace"):
-            return self._clrnamespace + "." + self.__name__
+            return f'{self._clrnamespace}.{self.__name__}'
         else:
             return self.__name__
 
@@ -239,17 +245,13 @@ class ClrInterface(ClrType):
         #   class IFoo(object):
         #     __metaclass__ = ClrInterface
         #   class CFoo(IFoo): pass
-        if not "__metaclass__" in self.__dict__:
+        if "__metaclass__" not in self.__dict__:
             return super(ClrInterface, self).__clrtype__()
 
         bases = list(self.__bases__)
         bases.remove(object)
         bases = tuple(bases)
-        if False: # Snippets currently does not support creating interfaces
-            typegen = Snippets.Shared.DefineType(self.get_clr_type_name(), bases, True, False)
-            typebld = typegen.TypeBuilder
-        else:
-            typebld = ClrInterface.define_interface(self.get_clr_type_name(), bases)
+        typebld = ClrInterface.define_interface(self.get_clr_type_name(), bases)
         clr_type = self.create_type(typebld)
         self.map_clr_type(clr_type)
         return clr_type
@@ -296,12 +298,11 @@ class ClrClass(ClrInterface):
             return ClrClass.dynamic_operations_field
         python_context = clr.GetCurrentRuntime().GetLanguage(PythonContext)
         dynamic_operations = DynamicOperations(python_context)
-        
+
         typegen = Snippets.Shared.DefineType(
-            "DynamicOperationsHolder" + str(hash(python_context)), 
-            object, 
-            True, 
-            False)
+            f"DynamicOperationsHolder{hash(python_context)}", object, True, False
+        )
+
         typebld = typegen.TypeBuilder
         typebld.DefineField(
             "DynamicOperations",
@@ -309,9 +310,9 @@ class ClrClass(ClrInterface):
             FieldAttributes.Public | FieldAttributes.Static)
         new_type = typebld.CreateType()
         ClrClass.dynamic_operations_field = new_type.GetField("DynamicOperations")
-        
+
         ClrClass.dynamic_operations_field.SetValue(None, dynamic_operations)
-        
+
         return ClrClass.dynamic_operations_field
         
     def emit_typed_stub_to_python_method(self, typebld, function_info):
@@ -488,9 +489,11 @@ class ClrClass(ClrInterface):
             ctorparams = ctorparams[1:]
 
             ctorbld = typebld.DefineConstructor(
-                        ctor.Attributes,
-                        ctor.CallingConvention,
-                        tuple([p.ParameterType for p in ctorparams]))
+                ctor.Attributes,
+                ctor.CallingConvention,
+                tuple(p.ParameterType for p in ctorparams),
+            )
+
             ilgen = ctorbld.GetILGenerator()
             ilgen.Emit(OpCodes.Ldarg, 0)
             ilgen.Emit(OpCodes.Ldsfld, python_type_field)
@@ -517,7 +520,7 @@ class ClrClass(ClrInterface):
         #   class CBase(object):
         #     __metaclass__ = ClrClass
         #   class CDerived(CBase): pass
-        if not "__metaclass__" in self.__dict__:
+        if "__metaclass__" not in self.__dict__:
             return super(ClrClass, self).__clrtype__()
 
         # Create a simple Python type first. 
@@ -535,7 +538,7 @@ def make_cab(attrib_type, *args, **kwds):
 
     props = ([],[])
     fields = ([],[])
-    
+
     for kwd in kwds:
         pi = clrtype.GetProperty(kwd)
         if pi is not None:
@@ -543,12 +546,11 @@ def make_cab(attrib_type, *args, **kwds):
             props[1].append(kwds[kwd])
         else:
             fi = clrtype.GetField(kwd)
-            if fi is not None:
-                fields[0].append(fi)
-                fields[1].append(kwds[kwd])
-            else:
+            if fi is None:
                 raise TypeError("No %s Member found on %s" % (kwd, clrtype.Name))
-    
+
+            fields[0].append(fi)
+            fields[1].append(kwds[kwd])
     return CustomAttributeBuilder(ci, args, 
         tuple(props[0]), tuple(props[1]), 
         tuple(fields[0]), tuple(fields[1]))
@@ -602,7 +604,7 @@ class CustomAttributeDecorator(object):
         return function
 
     def GetBuilder(self):
-        assert not self.attrib_type in [DllImportAttribute]
+        assert self.attrib_type not in [DllImportAttribute]
         return make_cab(self.attrib_type, *self.args, **self.kwargs)
 
 def attribute(attrib_type):

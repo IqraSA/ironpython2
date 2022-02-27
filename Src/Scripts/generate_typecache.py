@@ -25,12 +25,8 @@ the private storage as a lower-case named version of the type.
     __slots__ = ['name', 'type', 'typeType', 'entryName']
     def __init__(self, type, name=None, typeType='PythonType', entryName=None):
         self.type = type
-        if name != None: self.name = name
-        else: self.name = type.lower()
-
-        if entryName != None: self.entryName = entryName
-        else: self.entryName = self.type
-        
+        self.name = name if name != None else type.lower()
+        self.entryName = entryName if entryName != None else self.type
         self.typeType = typeType
         
 # list of all the types we auto-generate
@@ -83,10 +79,8 @@ def gen_typecache(cw):
     for x in data:
         cw.enter_block("public static %s %s" % (x.typeType, x.entryName))
         cw.enter_block("get")
-        
-        if x.typeType != 'PythonType': cast = '(%s)' % x.typeType
-        else: cast = ""
-        
+
+        cast = '(%s)' % x.typeType if x.typeType != 'PythonType' else ""
         cw.write("if (%s == null) %s = %sDynamicHelpers.GetPythonTypeFromType(typeof(%s));" % (x.name, x.name, cast, x.type))
         cw.write("return %s;" % x.name)
         cw.exit_block()

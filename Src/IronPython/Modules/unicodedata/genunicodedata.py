@@ -6,8 +6,7 @@ EASTASIANWIDTHS="EastAsianWidth.txt"
 def readdatafile(filename):
     with open(filename) as f:
         for line in f:
-            line = line.split('#')[0].strip()
-            if line:
+            if line := line.split('#')[0].strip():
                 yield line.split(';')
 
 def builddb(raw_data):

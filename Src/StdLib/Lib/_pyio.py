@@ -218,10 +218,8 @@ def open(file, mode="r", buffering=-1,
             buffer = BufferedRandom(raw, buffering)
         elif writing or appending:
             buffer = BufferedWriter(raw, buffering)
-        elif reading:
-            buffer = BufferedReader(raw, buffering)
         else:
-            raise ValueError("unknown mode: %r" % mode)
+            buffer = BufferedReader(raw, buffering)
         result = buffer
         if binary:
             return result
@@ -572,11 +570,7 @@ class RawIOBase(IOBase):
             if not data:
                 break
             res += data
-        if res:
-            return bytes(res)
-        else:
-            # b'' or None
-            return data
+        return bytes(res) if res else data
 
     def readinto(self, b):
         """Read up to len(b) bytes into b.

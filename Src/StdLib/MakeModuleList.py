@@ -19,10 +19,10 @@ excludedFiles       = []
 def find_root():
     test_dirs = ['Src', 'Build', 'Package', 'Tests', 'Util']
     root = os.getcwd()
-    test = all([os.path.exists(os.path.join(root, x)) for x in test_dirs])
+    test = all(os.path.exists(os.path.join(root, x)) for x in test_dirs)
     while not test:
         root = os.path.dirname(root)
-        test = all([os.path.exists(os.path.join(root, x)) for x in test_dirs])
+        test = all(os.path.exists(os.path.join(root, x)) for x in test_dirs)
     return root
 
 root = find_root()

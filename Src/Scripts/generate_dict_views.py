@@ -32,10 +32,7 @@ def inequality(comp):
 def gen_ops(ty):
     def _gen_ops(cw):
         for op, op_name in ops:
-            for format_args in [
-                (op, ty + ' x', 'IEnumerable y'),
-                (op, 'IEnumerable y', ty + ' x'),
-            ]:
+            for format_args in [(op, f'{ty} x', 'IEnumerable y'), (op, 'IEnumerable y', f'{ty} x')]:
                 cw.enter_block('public static SetCollection operator %s(%s, %s)' % format_args)
                 cw.writeline('return new SetCollection(SetStorage.%s(' % op_name)
                 cw.indent()

@@ -48,25 +48,23 @@ console for testing purposes, and direct input to and from the instance.
     def Start(self):
         if (not self.proc.Start()):
             return False
-        else:
-            self.reader = self.proc.StandardOutput
-            self.reader2 = self.proc.StandardError
-            self.writer = self.proc.StandardInput
-            self.InitializeErrorWatcher()
-            self.EatToPrompt()
-            return True
+        self.reader = self.proc.StandardOutput
+        self.reader2 = self.proc.StandardError
+        self.writer = self.proc.StandardInput
+        self.InitializeErrorWatcher()
+        self.EatToPrompt()
+        return True
 
     def StartAndRunToCompletion(self):
         if (not self.proc.Start()):
             return (False, None, None)
-        else:
-            self.reader = self.proc.StandardOutput
-            self.reader2 = self.proc.StandardError
-            self.writer = self.proc.StandardInput
-            # This will hang if the output exceeds the buffer size
-            output = self.reader.ReadToEnd()
-            output2 = self.reader2.ReadToEnd()
-            return (True, output, output2, self.proc.ExitCode)
+        self.reader = self.proc.StandardOutput
+        self.reader2 = self.proc.StandardError
+        self.writer = self.proc.StandardInput
+        # This will hang if the output exceeds the buffer size
+        output = self.reader.ReadToEnd()
+        output2 = self.reader2.ReadToEnd()
+        return (True, output, output2, self.proc.ExitCode)
 
     def EnsureInteractive(self):
         twoPlusTwoResult = self.ExecuteLine("2 + 2", True)
@@ -79,23 +77,19 @@ console for testing purposes, and direct input to and from the instance.
     # as the prompt.
     def EatToPrompt(self, readError=False):
         result = self.EatToMarker(">>> ", readError)
-        return result[0 : -len(">>> ")]
+        return result[:-len(">>> ")]
 
     def EatToMarker(self, marker, readError=False):
         slurped = ""
-        while not marker in slurped:
+        while marker not in slurped:
             nextChar = self.reader.Read()
             if nextChar == -1: raise ValueError("unexpected end of input after reading '%s'" % slurped)
             slurped += chr(nextChar)
             if slurped == '...': raise ValueError("found ... instead of %s, after reading %s" % (marker, slurped))
-        
+
         assert(slurped.endswith(marker))
 
-        if readError:
-            # This should be returned as separate return values, instead of being appended together
-            return self.ReadError() + slurped
-        else: 
-            return slurped
+        return self.ReadError() + slurped if readError else slurped
 
     # Execute a single-line command, and return the output
     def ExecuteLine(self, line, readError=False):

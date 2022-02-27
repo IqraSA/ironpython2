@@ -19,12 +19,12 @@ class NumType:
     def __init__(self, type):
         self.name = clr.GetClrType(type).Name
         self.type = type
-        self.ops = self.name+"Ops"
+        self.ops = f'{self.name}Ops'
         self.min, self.max = get_min_max(type)
-        
+
         self.is_signed = self.min < 0
         self.size = self.max-self.min + 1
-        
+
         self.is_float = (self.type(1)/self.type(2) != 0)
         
     def get_dict(self):
@@ -33,17 +33,13 @@ class NumType:
         if self.name == "Int32":
             toObj = "Microsoft.Scripting.Runtime.ScriptingRuntimeHelpers.Int32ToObject((Int32)"
             toObjFooter = ")"
-        if self.get_overflow_type() == bigint:
-            op_type = 'BigInteger'
-        else:
-            op_type = 'Int32'
+        op_type = 'BigInteger' if self.get_overflow_type() == bigint else 'Int32'
         return dict(type = self.name, bigger_type = self.get_overflow_type().get_signed().name,
             bigger_signed = self.get_overflow_type().get_signed().name,
             type_to_object = toObj, type_to_object_footer = toObjFooter, op_type=op_type, rop_type=op_type)
 
     def get_other_sign(self):
-        if self.is_signed: return self.get_unsigned()
-        else: return self.get_signed()
+        return self.get_unsigned() if self.is_signed else self.get_signed()
         
     def get_unsigned(self):
         if not self.is_signed: return self
@@ -72,24 +68,17 @@ class NumType:
         
     def is_implicit(self, oty):
         if self.is_float:
-            if oty.is_float:
-                return self.size <= oty.size
-            else:
+            return self.size <= oty.size if oty.is_float else False
+        if oty.is_float:
+            return True
+        elif self.is_signed:
+            if not oty.is_signed:
                 return False
+            if self.name == 'Double':
+                return oty.name in ['Double', 'Complex64']
+            else: return self.size <= oty.size
         else:
-            if oty.is_float:
-                return True
-            elif self.is_signed:
-                if oty.is_signed:
-                    if self.name == 'Double': return oty.name == 'Double' or oty.name == 'Complex64'
-                    else: return self.size <= oty.size
-                else:
-                    return False
-            else:
-                if oty.is_signed:
-                    return self.size < oty.size
-                else:
-                    return self.size <= oty.size
+            return self.size < oty.size if oty.is_signed else self.size <= oty.size
         
 for type in SByte, Byte, Int16, UInt16, Int32, UInt32, Int64, UInt64, Single, Double, complex, long:
     types.append(NumType(type))
@@ -150,7 +139,7 @@ public static object __trunc__(%(type)s x) {
 def gen_unaryops(cw, ty):    
     cw.write("// Unary Operations")
     cw.write(identity_method, method_name="Plus")
-    
+
     if ty.is_float:
         cw.write(simple_method, method_name="Negate", symbol="-")
         cw.write(simple_method, method_name="Abs", symbol="Math.Abs")
@@ -162,50 +151,48 @@ def gen_unaryops(cw, ty):
         cw.write(unsigned_negate_or_invert, method_name="Negate")
         cw.write(identity_method, method_name="Abs")
         cw.write(unsigned_negate_or_invert, method_name="OnesComplement")
-    
+
     if (ty.type is not complex) and (ty.type is not bigint):
         cw.enter_block('public static bool __nonzero__(%s x)' % (ty.name))
         cw.writeline('return (x != 0);')
         cw.exit_block()
         cw.writeline()
-    
+
     # this is handled in another Ops file
     if not ty.is_float:
         cw.enter_block('public static string __repr__(%s x)' % (ty.name))
         cw.writeline('return x.ToString(CultureInfo.InvariantCulture);')
         cw.exit_block()
-    
+
     if ty.is_float:
         cw.write(float_trunc, type=ty.name)
     else:
         cw.write(simple_identity_method, type=ty.name, method_name="__trunc__")
         if ty.max > UInt32.MaxValue:    
             cw.enter_block('public static int __hash__(%s x)' % (ty.name))
-            if ty.is_signed:                
+            if ty.is_signed:    
                 cw.writeline('%s tmp = x;' % (ty.name, ))
                 cw.enter_block('if (tmp < 0)')
                 cw.writeline('tmp *= -1;')
                 cw.exit_block()
-                
+
                 cw.writeline('int total = unchecked((int) (((uint)tmp) + (uint)(tmp >> 32)));')
                 cw.enter_block('if (x < 0)')
                 cw.writeline('return unchecked(-total);')
                 cw.exit_block()
-                cw.writeline('return total;')        
+                cw.writeline('return total;')
                 cw.exit_block()
-                cw.writeline()
             else:
                 cw.writeline('int total = unchecked((int) (((uint)x) + (uint)(x >> 32)));')
                 cw.enter_block('if (x < 0)')
                 cw.writeline('return unchecked(-total);')
                 cw.exit_block()
-                cw.writeline('return total;')        
+                cw.writeline('return total;')
                 cw.exit_block()
-                cw.writeline()
-
+            cw.writeline()
             cw.enter_block('public static BigInteger __index__(%s x)' % (ty.name))
             cw.writeline('return unchecked((BigInteger)x);')
-            cw.exit_block()            
+            cw.exit_block()
         else:
             cw.enter_block('public static int __hash__(%s x)' % (ty.name))
             cw.writeline('return unchecked((int)x);')
@@ -433,7 +420,7 @@ public static %(type)s Get%(method_name)s(%(type)s x) {
 
 # const=None indicates an identity property, i.e. a property that returns 'self'
 def write_property(cw, ty, name, const=None):
-    if const == None:
+    if const is None:
         cw.write(identity_property_method, type=ty.name, method_name=name)
     else:
         cw.write(const_property_method, type=ty.name, method_name=name, const=const)
@@ -446,17 +433,15 @@ def gen_api(cw, ty):
     write_property(cw, ty, "real")
     write_property(cw, ty, "imag", const="0")
     cw.write(simple_identity_method, type=ty.name, method_name="conjugate")
-    if ty.is_float:
-        pass
-    else:
+    if not ty.is_float:
         write_property(cw, ty, "numerator")
         write_property(cw, ty, "denominator", const="1")
-        
+
         if ty.name != 'Int32':
             cw.enter_block('public static string __hex__(%s value)' % ty.name)
             cw.write('return BigIntegerOps.__hex__(value);')        
             cw.exit_block()
-        
+
         cast = "(int)"
         counter = "BitLength"
         if ty.size >= 4294967296:

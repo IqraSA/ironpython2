@@ -552,10 +552,7 @@ class Decimal(object):
                 return context._raise_error(ConversionSyntax,
                                 "Invalid literal for Decimal: %r" % value)
 
-            if m.group('sign') == "-":
-                self._sign = 1
-            else:
-                self._sign = 0
+            self._sign = 1 if m.group('sign') == "-" else 0
             intpart = m.group('int')
             if intpart is not None:
                 # finite number
@@ -569,10 +566,7 @@ class Decimal(object):
                 if diag is not None:
                     # NaN
                     self._int = str(int(diag or '0')).lstrip('0')
-                    if m.group('signal'):
-                        self._exp = 'N'
-                    else:
-                        self._exp = 'n'
+                    self._exp = 'N' if m.group('signal') else 'n'
                 else:
                     # infinity
                     self._int = '0'
@@ -582,10 +576,7 @@ class Decimal(object):
 
         # From an integer
         if isinstance(value, (int,long)):
-            if value >= 0:
-                self._sign = 0
-            else:
-                self._sign = 1
+            self._sign = 0 if value >= 0 else 1
             self._exp = 0
             self._int = str(abs(value))
             self._is_special = False
@@ -628,14 +619,13 @@ class Decimal(object):
                 # process and validate the digits in value[1]
                 digits = []
                 for digit in value[1]:
-                    if isinstance(digit, (int, long)) and 0 <= digit <= 9:
-                        # skip leading zeros
-                        if digits or digit != 0:
-                            digits.append(digit)
-                    else:
+                    if not isinstance(digit, (int, long)) or not 0 <= digit <= 9:
                         raise ValueError("The second value in the tuple must "
                                          "be composed of integers in the range "
                                          "0 through 9.")
+                    # skip leading zeros
+                    if digits or digit != 0:
+                        digits.append(digit)
                 if value[2] in ('n', 'N'):
                     # NaN: digits form the diagnostic
                     self._int = ''.join(map(str, digits))
@@ -689,17 +679,11 @@ class Decimal(object):
             return cls(f)
         if _math.isinf(f) or _math.isnan(f):  # raises TypeError if not a float
             return cls(repr(f))
-        if _math.copysign(1.0, f) == 1.0:
-            sign = 0
-        else:
-            sign = 1
+        sign = 0 if _math.copysign(1.0, f) == 1.0 else 1
         n, d = abs(f).as_integer_ratio()
         k = d.bit_length() - 1
         result = _dec_from_triple(sign, str(n*5**k), -k)
-        if cls is Decimal:
-            return result
-        else:
-            return cls(result)
+        return result if cls is Decimal else cls(result)
     from_float = classmethod(from_float)
 
     def _isnan(self):
@@ -725,9 +709,7 @@ class Decimal(object):
         -1 if -INF
         """
         if self._exp == 'F':
-            if self._sign:
-                return -1
-            return 1
+            return -1 if self._sign else 1
         return 0
 
     def _check_nans(self, other=None, context=None):
@@ -741,11 +723,7 @@ class Decimal(object):
         """
 
         self_is_nan = self._isnan()
-        if other is None:
-            other_is_nan = False
-        else:
-            other_is_nan = other._isnan()
-
+        other_is_nan = False if other is None else other._isnan()
         if self_is_nan or other_is_nan:
             if context is None:
                 context = getcontext()
@@ -820,10 +798,7 @@ class Decimal(object):
 
         # check for zeros;  Decimal('0') == Decimal('-0')
         if not self:
-            if not other:
-                return 0
-            else:
-                return -((-1)**other._sign)
+            return 0 if not other else -((-1)**other._sign)
         if not other:
             return (-1)**self._sign
 
@@ -931,8 +906,7 @@ class Decimal(object):
 
         # Compare(NaN, NaN) = NaN
         if (self._is_special or other and other._is_special):
-            ans = self._check_nans(other, context)
-            if ans:
+            if ans := self._check_nans(other, context):
                 return ans
 
         return Decimal(self._cmp(other))
@@ -959,11 +933,7 @@ class Decimal(object):
             else:
                 # values chosen to match hash(float('inf')) and
                 # hash(float('-inf')).
-                if self._sign:
-                    return -271828
-                else:
-                    return 314159
-
+                return -271828 if self._sign else 314159
         # In Python 2.7, we're allowing comparisons (but not
         # arithmetic operations) between floats and Decimals;  so if
         # a Decimal instance is exactly representable as a float then
@@ -1010,11 +980,11 @@ class Decimal(object):
         sign = ['', '-'][self._sign]
         if self._is_special:
             if self._exp == 'F':
-                return sign + 'Infinity'
+                return f'{sign}Infinity'
             elif self._exp == 'n':
-                return sign + 'NaN' + self._int
+                return f'{sign}NaN{self._int}'
             else: # self._exp == 'N'
-                return sign + 'sNaN' + self._int
+                return f'{sign}sNaN{self._int}'
 
         # number of digits of self._int to left of decimal point
         leftdigits = self._exp + len(self._int)
@@ -1043,7 +1013,7 @@ class Decimal(object):
             fracpart = ''
         else:
             intpart = self._int[:dotplace]
-            fracpart = '.' + self._int[dotplace:]
+            fracpart = f'.{self._int[dotplace:]}'
         if leftdigits == dotplace:
             exp = ''
         else:

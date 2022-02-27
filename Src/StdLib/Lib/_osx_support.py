@@ -39,17 +39,16 @@ def _find_executable(executable, path=None):
     base, ext = os.path.splitext(executable)
 
     if (sys.platform == 'win32' or os.name == 'os2') and (ext != '.exe'):
-        executable = executable + '.exe'
+        executable = f'{executable}.exe'
 
-    if not os.path.isfile(executable):
-        for p in paths:
-            f = os.path.join(p, executable)
-            if os.path.isfile(f):
-                # the file exists, we have a shot at spawn working
-                return f
-        return None
-    else:
+    if os.path.isfile(executable):
         return executable
+    for p in paths:
+        f = os.path.join(p, executable)
+        if os.path.isfile(f):
+            # the file exists, we have a shot at spawn working
+            return f
+    return None
 
 
 def _read_output(commandstring):
@@ -197,7 +196,7 @@ def _find_appropriate_compiler(_config_vars):
         for cv in _COMPILER_CONFIG_VARS:
             if cv in _config_vars and cv not in os.environ:
                 cv_split = _config_vars[cv].split()
-                cv_split[0] = cc if cv != 'CXX' else cc + '++'
+                cv_split[0] = cc if cv != 'CXX' else f'{cc}++'
                 _save_modified_value(_config_vars, cv, ' '.join(cv_split))
 
     return _config_vars
@@ -268,7 +267,7 @@ def _override_all_archs(_config_vars):
             if cv in _config_vars and '-arch' in _config_vars[cv]:
                 flags = _config_vars[cv]
                 flags = re.sub('-arch\s+\w+\s', ' ', flags)
-                flags = flags + ' ' + arch
+                flags = f'{flags} {arch}'
                 _save_modified_value(_config_vars, cv, flags)
 
     return _config_vars
@@ -334,7 +333,7 @@ def compiler_fixup(compiler_so, cc_args):
     if 'ARCHFLAGS' in os.environ and not stripArch:
         # User specified different -arch flags in the environ,
         # see also distutils.sysconfig
-        compiler_so = compiler_so + os.environ['ARCHFLAGS'].split()
+        compiler_so += os.environ['ARCHFLAGS'].split()
 
     if stripSysroot:
         while True:
@@ -438,9 +437,7 @@ def get_platform_osx(_config_vars, osname, release, machine):
 
     macver = _config_vars.get('MACOSX_DEPLOYMENT_TARGET', '')
     macrelease = _get_system_version() or macver
-    macver = macver or macrelease
-
-    if macver:
+    if macver := macver or macrelease:
         release = macver
         osname = "macosx"
 
@@ -448,11 +445,10 @@ def get_platform_osx(_config_vars, osname, release, machine):
         # return the same machine type for the platform string.
         # Otherwise, distutils may consider this a cross-compiling
         # case and disallow installs.
-        cflags = _config_vars.get(_INITPRE+'CFLAGS',
-                                    _config_vars.get('CFLAGS', ''))
+        cflags = _config_vars.get(f'{_INITPRE}CFLAGS', _config_vars.get('CFLAGS', ''))
         if macrelease:
             try:
-                macrelease = tuple(int(i) for i in macrelease.split('.')[0:2])
+                macrelease = tuple(int(i) for i in macrelease.split('.')[:2])
             except ValueError:
                 macrelease = (10, 0)
         else:
@@ -494,9 +490,5 @@ def get_platform_osx(_config_vars, osname, release, machine):
         elif machine in ('PowerPC', 'Power_Macintosh'):
             # Pick a sane name for the PPC architecture.
             # See 'i386' case
-            if sys.maxint >= 2**32:
-                machine = 'ppc64'
-            else:
-                machine = 'ppc'
-
+            machine = 'ppc64' if sys.maxint >= 2**32 else 'ppc'
     return (osname, release, machine)

@@ -355,7 +355,7 @@ class Importer:
         imported the parent module.
         """
         top_name = parts[0]
-        top_fqname = parent.__name__ + '.' + top_name
+        top_fqname = f'{parent.__name__}.{top_name}'
         top_module = self._import_one(parent, top_name, top_fqname)
         if not top_module:
             # this importer and parent could not find the module (relatively)
@@ -407,10 +407,10 @@ class Importer:
 #
 
 # byte-compiled file suffix character
-_suffix_char = __debug__ and 'c' or 'o'
+_suffix_char = 'c' if __debug__ else 'o'
 
 # byte-compiled file suffix
-_suffix = '.py' + _suffix_char
+_suffix = f'.py{_suffix_char}'
 
 def _compile(pathname, timestamp):
     """Compile (and cache) a Python source file.
@@ -470,7 +470,7 @@ def _os_bootstrap():
             if a == '':
                 return b
             lastchar = a[-1:]
-            if lastchar == '/' or lastchar == sep:
+            if lastchar in ['/', sep]:
                 return a + b
             return a + sep + b
 
@@ -534,8 +534,7 @@ class _FilesystemImporter(Importer):
         self.suffixes.append((suffix, importFunc))
 
     def import_from_dir(self, dir, fqname):
-        result = self._import_pathname(_os_path_join(dir, fqname), fqname)
-        if result:
+        if result := self._import_pathname(_os_path_join(dir, fqname), fqname):
             return self._process_result(result, fqname)
         return None
 
@@ -555,9 +554,9 @@ class _FilesystemImporter(Importer):
 
     def _import_pathname(self, pathname, fqname):
         if _os_path_isdir(pathname):
-            result = self._import_pathname(_os_path_join(pathname, '__init__'),
-                                           fqname)
-            if result:
+            if result := self._import_pathname(
+                _os_path_join(pathname, '__init__'), fqname
+            ):
                 values = result[2]
                 values['__pkgdir__'] = pathname
                 values['__path__'] = [ pathname ]
@@ -586,12 +585,11 @@ def py_suffix_importer(filename, finfo, fqname):
 
     code = None
     if t_pyc is not None and t_pyc >= t_py:
-        f = open(file, 'rb')
-        if f.read(4) == imp.get_magic():
-            t = struct.unpack('<I', f.read(4))[0]
-            if t == t_py:
-                code = marshal.load(f)
-        f.close()
+        with open(file, 'rb') as f:
+            if f.read(4) == imp.get_magic():
+                t = struct.unpack('<I', f.read(4))[0]
+                if t == t_py:
+                    code = marshal.load(f)
     if code is None:
         file = filename
         code = _compile(file, t_py)

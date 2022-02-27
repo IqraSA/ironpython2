@@ -13,17 +13,16 @@ MAX_HELPERS = 7
 TYPE_CODE_TYPES = ['Int16', 'Int32', 'Int64', 'Boolean', 'Char', 'Byte', 'Decimal', 'DateTime', 'Double', 'Single', 'UInt16', 'UInt32', 'UInt64', 'String', 'SByte']
 
 def get_args(i):
-    return ['arg' + str(x) for x in xrange(i)]
+    return [f'arg{str(x)}' for x in xrange(i)]
 
 def get_arr_args(i):
-    return ['args[' + str(x) + ']' for x in xrange(i)]
+    return [f'args[{str(x)}]' for x in xrange(i)]
 
 def get_object_args(i):
-    return ['object arg' + str(x) for x in xrange(i)]
+    return [f'object arg{str(x)}' for x in xrange(i)]
 
 def get_type_names(i):
-    if i == 1: return ['T0']
-    return ['T' + str(x) for x in xrange(i)]    
+    return ['T0'] if i == 1 else [f'T{str(x)}' for x in xrange(i)]    
 
 def get_invoke_type_names(i):
     return get_type_names(i - 1) + ['TRet']
@@ -32,8 +31,7 @@ def get_cast_args(i):
     return ['(%s)%s' % (x[0], x[1]) for x in zip(get_type_names(i), get_args(i))]
 
 def get_type_params(i):
-    if i == 0: return ''
-    return '<' + ', '.join(get_type_names(i)) + '>'
+    return '' if i == 0 else '<' + ', '.join(get_type_names(i)) + '>'
     
     
 def gen_instruction(cw, n):
@@ -101,7 +99,7 @@ def gen_instructions(cw):
 
 def gen_run_method(cw, n, is_void):
     type_params = ['T%d' % i for i in xrange(n)]
-    param_names = ['T%d arg%d' % (i,i) for i in xrange(n)] 
+    param_names = ['T%d arg%d' % (i,i) for i in xrange(n)]
     if is_void:
         ret_type = 'void'
         name_extra = 'Void'
@@ -109,14 +107,12 @@ def gen_run_method(cw, n, is_void):
         ret_type = 'TRet'
         name_extra = ''
         type_params.append(ret_type)
-        
-    if type_params: types = '<' + ','.join(type_params) + '>'
-    else: types = ''
-    
+
+    types = '<' + ','.join(type_params) + '>' if type_params else ''
     cw.enter_block('internal %s Run%s%d%s(%s)' % (ret_type, name_extra, n,
                                                 types, 
                                                 ','.join(param_names)))
-        
+
     cw.enter_block('if (_compiled != null || TryGetCompiled())')
     args = ', '.join(['arg%d' % i for i in xrange(n)])
     if is_void:
@@ -129,19 +125,19 @@ def gen_run_method(cw, n, is_void):
     cw.write('var frame = MakeFrame();')
     for i in xrange(n):
         cw.write('frame.Data[%d] = arg%d;' % (i,i))
-    
+
     cw.write('var current = frame.Enter();')
     cw.write('try { _interpreter.Run(frame); } finally { frame.Leave(current); }')
-    
+
     if not is_void: 
         cw.write('return (TRet)frame.Pop();')
-        
+
     cw.exit_block()
     cw.write('')
     
 def gen_run_maker(cw, n, is_void):
     type_params = ['T%d' % i for i in xrange(n)]
-    
+
     if is_void:
         name_extra = 'Void'
         delegate_name = 'Action'
@@ -150,9 +146,7 @@ def gen_run_maker(cw, n, is_void):
         name_extra = ''
         delegate_name = 'Func'
 
-    if type_params: types = '<' + ','.join(type_params) + '>'
-    else: types = ''
-
+    types = '<' + ','.join(type_params) + '>' if type_params else ''
     cw.enter_block('internal static Delegate MakeRun%s%d%s(LightLambda lambda)' % (name_extra, n, types))
     cw.write('return new %s%s(lambda.Run%s%d%s);' % (delegate_name, types, name_extra, n, types, ));
     cw.exit_block()

@@ -60,9 +60,8 @@ class FileConsole(object):
         self.mainScope = scriptEnv.CreateScope(mod.__dict__)
         
     def InitializePath(self):
-        searchPath = []
         currentDir = Directory.GetCurrentDirectory()
-        searchPath.append(currentDir)
+        searchPath = [currentDir]
         filePathDir = Path.GetDirectoryName(Path.Combine(currentDir, self.fileName))
         searchPath.append(filePathDir)
         entryDir = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)
@@ -86,10 +85,11 @@ class FileConsole(object):
         
     def GetCodeForStatement(self, codeText, statement):
         decoratorStart, decoratorLength = -1, 0
-        if isinstance(statement, FunctionDefinition):            
-            if (statement.Decorators != None and len(statement.Decorators) != 0):
-                decoratorStart = min([x.Start.Index for x in statement.Decorators])                
-                decoratorLength = statement.Start.Index - decoratorStart                
+        if isinstance(statement, FunctionDefinition) and (
+            statement.Decorators != None and len(statement.Decorators) != 0
+        ):
+            decoratorStart = min(x.Start.Index for x in statement.Decorators)
+            decoratorLength = statement.Start.Index - decoratorStart
         return codeText.Substring( statement.Start.Index if decoratorStart == -1 else decoratorStart, statement.Span.Length + decoratorLength)
 
     def Run(self):

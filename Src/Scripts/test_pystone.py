@@ -17,6 +17,5 @@ def test_main(type="short"):
     pystone.main(loops)
 
 if __name__=="__main__":
-    kind = "short"
-    if len(sys.argv) > 1: kind = sys.argv[1]
+    kind = sys.argv[1] if len(sys.argv) > 1 else "short"
     test_main(kind)

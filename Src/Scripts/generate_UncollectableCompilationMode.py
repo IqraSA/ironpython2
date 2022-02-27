@@ -148,7 +148,7 @@ def gen_dynamic(cw):
         line = "info = DelegateCache.FirstCacheNode(arg0.Type)"
         for i in xrange(1, n):
             line += ".NextCacheNode(arg%d.Type)" % i
-        cw.write(line + '.NextCacheNode(retType);')
+        cw.write(f'{line}.NextCacheNode(retType);')
         cw.enter_block("if (info.DelegateType == null)")
         cw.write("info.MakeDelegateType(retType, %s);" % _list_args(n))
         cw.exit_block()

@@ -171,12 +171,14 @@ def b32encode(s):
     encoded = EMPTYSTRING.join(parts)
     # Adjust for any leftover partial quanta
     if leftover == 1:
-        return encoded[:-6] + '======'
+        return f'{encoded[:-6]}======'
     elif leftover == 2:
-        return encoded[:-4] + '===='
+        return f'{encoded[:-4]}===='
     elif leftover == 3:
-        return encoded[:-3] + '==='
+        return f'{encoded[:-3]}==='
     elif leftover == 4:
+        return f'{encoded[:-1]}='
+    return encoded
         return encoded[:-1] + '='
     return encoded
 
@@ -214,8 +216,7 @@ def b32decode(s, casefold=False, map01=None):
     # characters because this will tell us how many null bytes to remove from
     # the end of the decoded string.
     padchars = 0
-    mo = re.search('(?P<pad>[=]*)$', s)
-    if mo:
+    if mo := re.search('(?P<pad>[=]*)$', s):
         padchars = len(mo.group('pad'))
         if padchars > 0:
             s = s[:-padchars]
@@ -247,6 +248,8 @@ def b32decode(s, casefold=False, map01=None):
         last = last[:-4]
     else:
         raise TypeError('Incorrect padding')
+    parts.append(last)
+    return EMPTYSTRING.join(parts)
     parts.append(last)
     return EMPTYSTRING.join(parts)
 

@@ -71,7 +71,7 @@ def generate_nullable_instance(cw):
     cw.exit_block()
 
 def valid_cast(f, t):
-    return not (f, t) in invalid_casts and not (t, f) in invalid_casts
+    return (f, t) not in invalid_casts and (t, f) not in invalid_casts
 
 def get_enum_type_for(t):
     return enum_casts[t]

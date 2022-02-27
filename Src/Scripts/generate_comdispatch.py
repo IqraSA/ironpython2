@@ -20,7 +20,7 @@ class VariantType:
         self.variantType = variantType
         self.managedType = managedType
         self.isPrimitiveType = isPrimitiveType
-        if unmanagedRepresentationType == None: self.unmanagedRepresentationType = managedType
+        if unmanagedRepresentationType is None: self.unmanagedRepresentationType = managedType
         else: self.unmanagedRepresentationType = unmanagedRepresentationType
 
         self.includeInUnionTypes = includeInUnionTypes
@@ -28,10 +28,10 @@ class VariantType:
         self.getStatements = getStatements
         self.setStatements = setStatements
 
-        self.managedFieldName = "_" + self.variantType.lower()
+        self.managedFieldName = f"_{self.variantType.lower()}"
         firstChar = self.variantType[0]
         self.name = self.variantType.lower().replace(firstChar.lower(), firstChar, 1)
-        self.accessorName = "As" + self.name
+        self.accessorName = f"As{self.name}"
         self.critical = critical
 
     def write_UnionTypes(self, cw):
@@ -57,7 +57,7 @@ class VariantType:
         if not transparent and self.critical: gen_exposed_code_security(cw)
         cw.enter_block("get")
         cw.write("Debug.Assert(VariantType == VarEnum.VT_%s);" % self.variantType)
-        if self.getStatements == None:
+        if self.getStatements is None:
             cw.write("return _typeUnion._unionTypes.%s;" % self.managedFieldName)
         else:
             for s in self.getStatements: cw.write(s)
@@ -68,7 +68,7 @@ class VariantType:
         cw.enter_block("set")
         cw.write("Debug.Assert(IsEmpty); // The setter can only be called once as VariantClear might be needed otherwise")
         cw.write("VariantType = VarEnum.VT_%s;" % self.variantType)
-        if self.setStatements == None:
+        if self.setStatements is None:
             cw.write("_typeUnion._unionTypes.%s = value;" % self.managedFieldName)
         else:
             for s in self.setStatements: cw.write(s)

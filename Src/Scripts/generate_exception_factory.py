@@ -24,8 +24,7 @@ def make_string_item(line1):
     ID = splitted[0]
     text = splitted[1]
     num = text.count('{')
-    string_item = StringItem(ID, text ,num)
-    return string_item
+    return StringItem(ID, text ,num)
 
 
 def make_exception_item(line1, line2):
@@ -34,8 +33,7 @@ def make_exception_item(line1, line2):
     ID = splitted[0]
     text = splitted[1]
     num = text.count('{')
-    exception_item = ExceptionItem(type, ID, text ,num)
-    return exception_item
+    return ExceptionItem(type, ID, text ,num)
 
 def collect_exceptions(filename):
 	thefile = open(filename)
@@ -50,51 +48,55 @@ def collect_exceptions(filename):
 	return items
 
 def collect_strings(filename):
-	thefile = open(filename)
-	text = thefile.read()
-	lines = text.splitlines()
-	items = []
-	for i in range(len(lines)):
-		line1 = lines[i]
-		if (not (line1.startswith("#") or line1.startswith(";")) and line1.find("=") > 0 ):
-			items.append(make_string_item(line1))			
-	return items
+    thefile = open(filename)
+    text = thefile.read()
+    lines = text.splitlines()
+    items = []
+    for i in range(len(lines)):
+        line1 = lines[i]
+        if (
+            not line1.startswith("#")
+            and not line1.startswith(";")
+            and line1.find("=") > 0
+        ):
+            items.append(make_string_item(line1))
+    return items
 
 
 def make_signature(cnt):
-	if cnt == 0:
-		return "()"
-		
-	sig = "("
-	for i in range(cnt - 1):
-		sig += "object p" + str(i) + ", "
-	
-	sig += "object p" + str(cnt - 1) + ")"
-	return sig
+    if cnt == 0:
+    	return "()"
+
+    sig = "("
+    for i in range(cnt - 1):
+        sig += f"object p{str(i)}, "
+
+    sig += f"object p{str(cnt - 1)})"
+    return sig
 
 
 def make_args(cnt):
-	if cnt == 0:
-		return "()"
-		
-	sig = "("
-	for i in range(cnt - 1):
-		sig += "p" + str(i) + ", "
-	
-	sig += "p" + str(cnt - 1) + ")"
-	return sig
+    if cnt == 0:
+    	return "()"
+
+    sig = "("
+    for i in range(cnt - 1):
+        sig += f"p{str(i)}, "
+
+    sig += f"p{str(cnt - 1)})"
+    return sig
 
 
 def make_format(text, cnt):
-	if cnt == 0:
-		return '"' + text + '"'
-		
-	format = 'FormatString("' + text + '", '
-	for i in range(cnt - 1):
-		format += "p" + str(i) + ", "
-	
-	format += "p" + str((cnt - 1)) + ")"
-	return format
+    if cnt == 0:
+    	return '"' + text + '"'
+
+    format = 'FormatString("' + text + '", '
+    for i in range(cnt - 1):
+        format += f"p{str(i)}, "
+
+    format += f"p{str(cnt - 1)})"
+    return format
 
 def escape(s):
 	s = s.replace('"', '\\"')

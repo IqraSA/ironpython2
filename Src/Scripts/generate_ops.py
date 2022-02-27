@@ -35,13 +35,13 @@ class Symbol:
         return self.name[0] + self.cap_name()[1:]
 
     def symbol_name(self):
-        return "Operator" + self.title_name()
+        return f"Operator{self.title_name()}"
 
     def reverse_symbol_name(self):
-        return "OperatorReverse" + self.title_name()
+        return f"OperatorReverse{self.title_name()}"
 
     def inplace_symbol_name(self):
-        return "OperatorInPlace" + self.title_name()
+        return f"OperatorInPlace{self.title_name()}"
 
     def __repr__(self):
         return 'Symbol(%s)' % self.symbol
@@ -58,10 +58,10 @@ class Operator(Symbol):
         self.rname = rname
         self.clrName = clrName
         self.dotnetOp = dotnetOp
-        self.meth_name = "__" + name + "__"
-        self.rmeth_name = "__" + rname + "__"
+        self.meth_name = f"__{name}__"
+        self.rmeth_name = f"__{rname}__"
         if name in kwlist:
-            name = name + "_"
+            name = f'{name}_'
         #self.op = getattr(operator, name)
         self.prec = prec
         self.opposite = opposite
@@ -70,7 +70,7 @@ class Operator(Symbol):
         self.bool3 = bool3
 
     def clrInPlaceName(self):
-        return "InPlace" + self.clrName
+        return f"InPlace{self.clrName}"
 
     def title_name(self):
         return self.clrName
@@ -214,12 +214,12 @@ class Operator(Symbol):
         if self.isCompare():
             if type != 'Complex' and self.symbol != '<>':
                 cw.writeline('case PythonOperator.%s: return new ConstantExpression(ScriptingRuntimeHelpers.BooleanToObject(%sOps.Compare((%s)constLeft.Value, (%s)constRight.Value) %s 0));' % (self.clrName, type, type, type, self.symbol))
-        elif (type !='Double' and type != 'Complex') or not self.is_bitwise():
+        elif type not in ['Double', 'Complex'] or not self.is_bitwise():
             cw.writeline('case PythonOperator.%s: return new ConstantExpression(%sOps.%s((%s)constLeft.Value, (%s)constRight.Value));' % (self.clrName, type, self.clrName, type, type))
 
 class Grouping(Symbol):
     def __init__(self, symbol, name, side, titleName=None):
-        Symbol.__init__(self, symbol, side+" "+name, titleName)
+        Symbol.__init__(self, symbol, f'{side} {name}', titleName)
         self.base_name = name
         self.side = side
 
@@ -244,8 +244,8 @@ binaries = [('+',  'add',      4, 'Add',         True),   ('-',  'sub',    4, 'S
 
 def add_binaries(list):
     for sym, name, prec,clrName, netOp in list:
-        ops.append(Operator(sym, name, 'r'+name, clrName, prec, dotnetOp = netOp))
-        ops.append(Symbol(sym+"=", name+" Equal", clrName+ "Equal"))
+        ops.append(Operator(sym, name, f'r{name}', clrName, prec, dotnetOp = netOp))
+        ops.append(Symbol(f'{sym}=', f'{name} Equal', f'{clrName}Equal'))
 
 add_binaries(binaries)
 
@@ -261,8 +261,8 @@ for sym, name, rname,clrName,opposite, bool1, bool2, bool3 in compares:
 
 groupings = [('(', ')', 'Paren', 'Parenthesis'), ('[', ']', 'Bracket', 'Bracket'), ('{', '}', 'Brace', 'Brace')]
 for sym, rsym, name, fullName in groupings:
-    ops.append(Grouping(sym, name, 'l', 'Left' + fullName))
-    ops.append(Grouping(rsym, name, 'r', 'Right' + fullName))
+    ops.append(Grouping(sym, name, 'l', f'Left{fullName}'))
+    ops.append(Grouping(rsym, name, 'r', f'Right{fullName}'))
 
 simple = [(',', 'comma'), (':', 'colon'), ('`', 'backquote', 'BackQuote'), (';', 'semicolon'),
           ('=', 'assign'), ('~', 'twiddle'), ('@', 'at')]
@@ -316,7 +316,6 @@ def gen_tests(ops, pos, indent=1):
     return ["    "*indent + l for l in ret]
 
 def tokenize_generator(cw):
-    ret = []
     done = {}
     for op in ops:
         ch = op.symbol[0]
@@ -326,20 +325,17 @@ def tokenize_generator(cw):
         for t in gen_tests(sops, 1):
             cw.write(t)
         done[ch] = True
-    return ret
+    return []
 
 friendlyOverload = {'elif':"ElseIf"}
 def keywordToFriendly(kw):
-    if kw in friendlyOverload:
-        return friendlyOverload[kw]
-
-    return kw.title()
+    return friendlyOverload[kw] if kw in friendlyOverload else kw.title()
 
 class unique_checker:
     def __init__(self):
         self.__unique = {}
     def unique(self, op):
-        if not op.symbol in self.__unique:
+        if op.symbol not in self.__unique:
             self.__unique[op.symbol] = op
             return True
         else: return False
@@ -356,7 +352,7 @@ def tokenkinds_generator(cw):
     keyword_list = list(kwlist)
 
     cw.write("FirstKeyword = Keyword%s," % keywordToFriendly(keyword_list[0]));
-    cw.write("LastKeyword = Keyword%s," % keywordToFriendly(keyword_list[len(keyword_list) - 1]));
+    cw.write("LastKeyword = Keyword%s," % keywordToFriendly(keyword_list[-1]));
 
     for kw in keyword_list:
         cw.write("Keyword%s = %d," % (keywordToFriendly(kw), i))
@@ -401,7 +397,7 @@ def gen_token_tree(cw, tree, keyword):
                     word.append(cur_tree.keys()[0])
                     cur_tree = cur_tree.values()[0][0]
                 else:
-                    gen_token_tree(cw, v, keyword + k)
+                    gen_token_tree(cw, cur_tree, keyword + k)
                     break
 
     cw.exit_block()
@@ -444,9 +440,7 @@ def tokens_generator(cw):
 
     cw.writeline()
 
-    keyword_list = list(kwlist)
-    keyword_list.sort()
-
+    keyword_list = sorted(kwlist)
     for kw in keyword_list:
         creator = 'new SymbolToken(TokenKind.Keyword%s, "%s")' % (
             keywordToFriendly(kw), kw)

@@ -86,9 +86,8 @@ class ABCMeta(type):
     def __new__(mcls, name, bases, namespace):
         cls = super(ABCMeta, mcls).__new__(mcls, name, bases, namespace)
         # Compute set of abstract method names
-        abstracts = set(name
-                     for name, value in namespace.items()
-                     if getattr(value, "__isabstractmethod__", False))
+        abstracts = {name for name, value in namespace.items()
+                         if getattr(value, "__isabstractmethod__", False)}
         for base in bases:
             for name in getattr(base, "__abstractmethods__", set()):
                 value = getattr(cls, name, None)

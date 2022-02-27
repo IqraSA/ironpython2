@@ -142,8 +142,7 @@ class DictWriter:
 
     def _dict_to_list(self, rowdict):
         if self.extrasaction == "raise":
-            wrong_fields = [k for k in rowdict if k not in self.fieldnames]
-            if wrong_fields:
+            if wrong_fields := [k for k in rowdict if k not in self.fieldnames]:
                 raise ValueError("dict contains fields not in fieldnames: "
                                  + ", ".join([repr(x) for x in wrong_fields]))
         return [rowdict.get(key, self.restval) for key in self.fieldnames]
@@ -152,9 +151,7 @@ class DictWriter:
         return self.writer.writerow(self._dict_to_list(rowdict))
 
     def writerows(self, rowdicts):
-        rows = []
-        for rowdict in rowdicts:
-            rows.append(self._dict_to_list(rowdict))
+        rows = [self._dict_to_list(rowdict) for rowdict in rowdicts]
         return self.writer.writerows(rows)
 
 # Guard Sniffer's type checking against builds that exclude complex()
@@ -271,11 +268,7 @@ class Sniffer:
 
 
 
-        if dq_regexp.search(data):
-            doublequote = True
-        else:
-            doublequote = False
-
+        doublequote = bool(dq_regexp.search(data))
         return (quotechar, doublequote, delim, skipinitialspace)
 
 
@@ -309,6 +302,8 @@ class Sniffer:
         modes = {}
         delims = {}
         start, end = 0, min(chunkLength, len(data))
+        # minimum consistency threshold
+        threshold = 0.9
         while start < len(data):
             iteration += 1
             for line in data[start:end]:
@@ -320,7 +315,7 @@ class Sniffer:
                     metaFrequency[freq] = metaFrequency.get(freq, 0) + 1
                     charFrequency[char] = metaFrequency
 
-            for char in charFrequency.keys():
+            for char in charFrequency:
                 items = charFrequency[char].items()
                 if len(items) == 1 and items[0][0] == 0:
                     continue
@@ -342,14 +337,17 @@ class Sniffer:
             total = float(chunkLength * iteration)
             # (rows of consistent data) / (number of rows) = 100%
             consistency = 1.0
-            # minimum consistency threshold
-            threshold = 0.9
-            while len(delims) == 0 and consistency >= threshold:
+            while not delims and consistency >= threshold:
                 for k, v in modeList:
-                    if v[0] > 0 and v[1] > 0:
-                        if ((v[1]/total) >= consistency and
-                            (delimiters is None or k in delimiters)):
-                            delims[k] = v
+                    if (
+                        v[0] > 0
+                        and v[1] > 0
+                        and (
+                            (v[1] / total) >= consistency
+                            and (delimiters is None or k in delimiters)
+                        )
+                    ):
+                        delims[k] = v
                 consistency -= 0.01
 
             if len(delims) == 1:
@@ -368,7 +366,7 @@ class Sniffer:
         # if there's more than one, fall back to a 'preferred' list
         if len(delims) > 1:
             for d in self.preferred:
-                if d in delims.keys():
+                if d in delims:
                     skipinitialspace = (data[0].count(d) ==
                                         data[0].count("%c " % d))
                     return (d, skipinitialspace)
@@ -399,9 +397,7 @@ class Sniffer:
         header = rdr.next() # assume first row is header
 
         columns = len(header)
-        columnTypes = {}
-        for i in range(columns): columnTypes[i] = None
-
+        columnTypes = {i: None for i in range(columns)}
         checked = 0
         for row in rdr:
             # arbitrary number of rows to check, to keep it sane
@@ -412,7 +408,7 @@ class Sniffer:
             if len(row) != columns:
                 continue # skip rows that have irregular number of columns
 
-            for col in columnTypes.keys():
+            for col, value in columnTypes.items():
 
                 for thisType in [int, long, float, complex]:
                     try:
@@ -429,7 +425,7 @@ class Sniffer:
                     thisType = int
 
                 if thisType != columnTypes[col]:
-                    if columnTypes[col] is None: # add new column type
+                    if value is None: # add new column type
                         columnTypes[col] = thisType
                     else:
                         # type is inconsistent, remove column from

@@ -121,7 +121,7 @@ class ServerHTMLDoc(pydoc.HTMLDoc):
 
         fdict = {}
         for key, value in methods.items():
-            fdict[key] = '#-' + key
+            fdict[key] = f'#-{key}'
             fdict[value] = fdict[key]
 
         server_name = self.escape(server_name)
@@ -129,13 +129,13 @@ class ServerHTMLDoc(pydoc.HTMLDoc):
         result = self.heading(head, '#ffffff', '#7799ee')
 
         doc = self.markup(package_documentation, self.preformat, fdict)
+        method_items = sorted(methods.items())
+        contents = [
+            self.docroutine(value, key, funcs=fdict) for key, value in method_items
+        ]
+
         doc = doc and '<tt>%s</tt>' % doc
         result = result + '<p>%s</p>\n' % doc
-
-        contents = []
-        method_items = sorted(methods.items())
-        for key, value in method_items:
-            contents.append(self.docroutine(value, key, funcs=fdict))
         result = result + self.bigsection(
             'Methods', '#ffffff', '#eeaa77', pydoc.join(contents))
 
@@ -195,9 +195,11 @@ class XMLRPCDocGenerator:
                     method_info[1] = self.instance._methodHelp(method_name)
 
                 method_info = tuple(method_info)
-                if method_info != (None, None):
+                if method_info != (None, None) or hasattr(
+                    self.instance, '_dispatch'
+                ):
                     method = method_info
-                elif not hasattr(self.instance, '_dispatch'):
+                else:
                     try:
                         method = resolve_dotted_attribute(
                                     self.instance,
@@ -205,8 +207,6 @@ class XMLRPCDocGenerator:
                                     )
                     except AttributeError:
                         method = method_info
-                else:
-                    method = method_info
             else:
                 assert 0, "Could not find method in self.functions and no "\
                           "instance installed"

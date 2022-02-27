@@ -11,17 +11,16 @@ MAX_HELPERS = 10
 TYPE_CODE_TYPES = ['Int16', 'Int32', 'Int64', 'Boolean', 'Char', 'Byte', 'Decimal', 'DateTime', 'Double', 'Single', 'UInt16', 'UInt32', 'UInt64', 'String', 'SByte']
 
 def get_args(i):
-    return ['arg' + str(x) for x in xrange(i)]
+    return [f'arg{str(x)}' for x in xrange(i)]
 
 def get_arr_args(i):
-    return ['args[' + str(x) + ']' for x in xrange(i)]
+    return [f'args[{str(x)}]' for x in xrange(i)]
 
 def get_object_args(i):
-    return ['object arg' + str(x) for x in xrange(i)]
+    return [f'object arg{str(x)}' for x in xrange(i)]
 
 def get_type_names(i):
-    if i == 1: return ['T0']
-    return ['T' + str(x) for x in xrange(i)]    
+    return ['T0'] if i == 1 else [f'T{str(x)}' for x in xrange(i)]    
 
 def get_func_type_names(i):
     return get_type_names(i - 1) + ['TRet']
@@ -30,12 +29,10 @@ def get_cast_args(i):
     return ['%s != null ? (%s)%s : default(%s)' % (x[0], x[1], x[0], x[1]) for x in zip(get_args(i), get_type_names(i))]
 
 def get_type_params(i):
-    if i == 0: return ''
-    return '<' + ', '.join(get_type_names(i)) + '>'
+    return '' if i == 0 else '<' + ', '.join(get_type_names(i)) + '>'
 
 def get_func_type_params(i):
-    if i == 0: return ''
-    return '<' + ', '.join(get_func_type_names(i)) + '>'
+    return '' if i == 0 else '<' + ', '.join(get_func_type_names(i)) + '>'
     
 def gen_invoke_instance(cw):
     cw.enter_block('public virtual object InvokeInstance(object instance, params object[] args)')
@@ -170,18 +167,18 @@ def get_explicit_caching(cw):
 def gen_call_instruction(cw):
     cw.enter_block('public partial class CallInstruction')
 
-    cw.write('private const int MaxHelpers = ' + str(MAX_HELPERS) + ';')
-    cw.write('private const int MaxArgs = ' + str(MAX_ARGS) + ';')
+    cw.write(f'private const int MaxHelpers = {str(MAX_HELPERS)};')
+    cw.write(f'private const int MaxArgs = {str(MAX_ARGS)};')
     cw.write('')
-     
+
     gen_invoke_instance(cw)
     gen_invoke(cw)
     gen_invoke_base_methods(cw)
-        
+
     gen_fast_creation(cw)
     get_get_helper_type(cw)
     get_explicit_caching(cw)
-    
+
     cw.exit_block()
     cw.write('')
 

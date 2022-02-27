@@ -115,8 +115,8 @@ class BasicModuleLoader(_Verbose):
         if path is None:
             path = [None] + self.default_path()
         for dir in path:
-            stuff = self.find_module_in_dir(name, dir)
-            if stuff: return stuff
+            if stuff := self.find_module_in_dir(name, dir):
+                return stuff
         return None
 
     def default_path(self):
@@ -125,11 +125,10 @@ class BasicModuleLoader(_Verbose):
     def find_module_in_dir(self, name, dir):
         if dir is None:
             return self.find_builtin_module(name)
-        else:
-            try:
-                return imp.find_module(name, [dir])
-            except ImportError:
-                return None
+        try:
+            return imp.find_module(name, [dir])
+        except ImportError:
+            return None
 
     def find_builtin_module(self, name):
         # XXX frozen packages?
@@ -243,10 +242,9 @@ class ModuleLoader(BasicModuleLoader):
         if allow_packages:
             fullname = self.hooks.path_join(dir, name)
             if self.hooks.path_isdir(fullname):
-                stuff = self.find_module_in_dir("__init__", fullname, 0)
-                if stuff:
-                    file = stuff[0]
-                    if file: file.close()
+                if stuff := self.find_module_in_dir("__init__", fullname, 0):
+                    if file := stuff[0]:
+                        file.close()
                     return None, fullname, ('', '', PKG_DIRECTORY)
         for info in self.hooks.get_suffixes():
             suff, mode, type = info

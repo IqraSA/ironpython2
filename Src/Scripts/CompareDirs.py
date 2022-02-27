@@ -10,14 +10,19 @@ import filecmp
 def compare_dirs(dir1, dir2):
     "Tests whether two folders, including all their contents and subdirectories are identical or not (True == they're the same, False == they are not the same)"
     dc = filecmp.dircmp(dir1,dir2)
-    if len(dc.funny_files) > 0 or len(dc.left_only) > 0 or len(dc.right_only) > 0 or len(dc.diff_files) > 0:
-        dc.report()
-        return False
-    else:
-        for subdir in dc.common_dirs:
-            if not compare_dirs(dir1 + "\\" + subdir, dir2 + "\\" + subdir):
-                return False
-        return True
+    if (
+        len(dc.funny_files) <= 0
+        and len(dc.left_only) <= 0
+        and len(dc.right_only) <= 0
+        and len(dc.diff_files) <= 0
+    ):
+        return all(
+            compare_dirs(f'{dir1}\\{subdir}', f'{dir2}\\{subdir}')
+            for subdir in dc.common_dirs
+        )
+
+    dc.report()
+    return False
 
 
 def main():

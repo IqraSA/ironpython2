@@ -331,7 +331,7 @@ class HTTPMessage(mimetools.Message):
                 break
             # Skip unix From name time lines
             if firstline and line.startswith('From '):
-                self.unixfrom = self.unixfrom + line
+                self.unixfrom += line
                 continue
             firstline = 0
             if headerseen and line[0] in ' \t':
@@ -352,12 +352,7 @@ class HTTPMessage(mimetools.Message):
                 # It's a legal header line, save it.
                 hlist.append(line)
                 self.addheader(headerseen, line[len(headerseen)+1:].strip())
-            elif headerseen is not None:
-                # An empty header name. These aren't allowed in HTTP, but it's
-                # probably a benign mistake. Don't add the header, just keep
-                # going.
-                pass
-            else:
+            elif headerseen is None:
                 # It's not a header line; skip it and try the next line.
                 self.status = 'Non-header line where header expected'
 
@@ -372,17 +367,7 @@ class HTTPResponse:
     # See RFC 2616 sec 19.6 and RFC 1945 sec 6 for details.
 
     def __init__(self, sock, debuglevel=0, strict=0, method=None, buffering=False):
-        if buffering:
-            # The caller won't be using any sock.recv() calls, so buffering
-            # is fine and recommended for performance.
-            self.fp = sock.makefile('rb')
-        else:
-            # The buffer size is specified as zero, because the headers of
-            # the response are read with readline().  If the reads were
-            # buffered the readline() calls could consume some of the
-            # response, which make be read via a recv() on the underlying
-            # socket.
-            self.fp = sock.makefile('rb', 0)
+        self.fp = sock.makefile('rb') if buffering else sock.makefile('rb', 0)
         self.debuglevel = debuglevel
         self.strict = strict
         self._method = method
@@ -555,8 +540,7 @@ class HTTPResponse:
         return True
 
     def close(self):
-        fp = self.fp
-        if fp:
+        if fp := self.fp:
             self.fp = None
             fp.close()
 
@@ -596,10 +580,9 @@ class HTTPResponse:
             self.close()        # we read everything
             return s
 
-        if self.length is not None:
-            if amt > self.length:
-                # clip the read to the "end of response"
-                amt = self.length
+        if self.length is not None and amt > self.length:
+            # clip the read to the "end of response"
+            amt = self.length
 
         # we do not use _safe_read() here because this may be a .will_close
         # connection, and the user is reading more bytes than will be provided
@@ -839,13 +822,11 @@ class HTTPConnection:
         """Close the connection to the HTTP server."""
         self.__state = _CS_IDLE
         try:
-            sock = self.sock
-            if sock:
+            if sock := self.sock:
                 self.sock = None
                 sock.close()   # close it manually... there may be other refs
         finally:
-            response = self.__response
-            if response:
+            if response := self.__response:
                 self.__response = None
                 response.close()
 
@@ -987,7 +968,7 @@ class HTTPConnection:
                         host_enc = host.encode("idna")
                     # Wrap the IPv6 Host Header with [] (RFC 2732)
                     if host_enc.find(':') >= 0:
-                        host_enc = "[" + host_enc + "]"
+                        host_enc = f"[{host_enc}]"
                     if port == self.default_port:
                         self.putheader('Host', host_enc)
                     else:
@@ -1004,17 +985,13 @@ class HTTPConnection:
             if not skip_accept_encoding:
                 self.putheader('Accept-Encoding', 'identity')
 
-            # we can accept "chunked" Transfer-Encodings, but no others
-            # NOTE: no TE header implies *only* "chunked"
-            #self.putheader('TE', 'chunked')
+                # we can accept "chunked" Transfer-Encodings, but no others
+                # NOTE: no TE header implies *only* "chunked"
+                #self.putheader('TE', 'chunked')
 
-            # if TE is supplied in the header, then it must appear in a
-            # Connection header.
-            #self.putheader('Connection', 'TE')
-
-        else:
-            # For HTTP/1.0, the server will assume "not chunked"
-            pass
+                # if TE is supplied in the header, then it must appear in a
+                # Connection header.
+                #self.putheader('Connection', 'TE')
 
     def _encode_request(self, request):
         # On Python 2, request is already encoded (default)
@@ -1022,9 +999,7 @@ class HTTPConnection:
 
     def _validate_path(self, url):
         """Validate a url for putrequest."""
-        # Prevent CVE-2019-9740.
-        match = _contains_disallowed_url_pchar_re.search(url)
-        if match:
+        if match := _contains_disallowed_url_pchar_re.search(url):
             msg = (
                 "URL can't contain control characters. {url!r} "
                 "(found at least {matched!r})"
@@ -1033,9 +1008,7 @@ class HTTPConnection:
 
     def _validate_host(self, host):
         """Validate a host so it doesn't contain control characters."""
-        # Prevent CVE-2019-18348.
-        match = _contains_disallowed_url_pchar_re.search(host)
-        if match:
+        if match := _contains_disallowed_url_pchar_re.search(host):
             msg = (
                 "URL can't contain control characters. {host!r} "
                 "(found at least {matched!r})"
@@ -1294,11 +1267,7 @@ else:
 
             HTTPConnection.connect(self)
 
-            if self._tunnel_host:
-                server_hostname = self._tunnel_host
-            else:
-                server_hostname = self.host
-
+            server_hostname = self._tunnel_host or self.host
             self.sock = self._context.wrap_socket(self.sock,
                                                   server_hostname=server_hostname)
 
@@ -1366,10 +1335,7 @@ class IncompleteRead(HTTPException):
         self.partial = partial
         self.expected = expected
     def __repr__(self):
-        if self.expected is not None:
-            e = ', %i more expected' % self.expected
-        else:
-            e = ''
+        e = ', %i more expected' % self.expected if self.expected is not None else ''
         return 'IncompleteRead(%i bytes read%s)' % (len(self.partial), e)
     def __str__(self):
         return repr(self)

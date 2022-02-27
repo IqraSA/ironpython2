@@ -15,7 +15,7 @@ class_pat = re.compile(r"public\s+(abstract\s+)?class\s+(?P<name>\w+)\s*(:\s*(?P
 START = "//BEGIN-GENERATED"
 END = "//END-GENERATED"
 
-generated_pat = re.compile(START+".*"+END, re.DOTALL)
+generated_pat = re.compile(f'{START}.*{END}', re.DOTALL)
 
 from_table = {
     'int':"Py.asInt(%s)",
@@ -27,10 +27,7 @@ from_table = {
 
 def from_any(totype, name):
     pat = from_table.get(totype, None)
-    if pat is None:
-        return "(%s)%s" % (totype, name)
-    else:
-        return pat % name
+    return "(%s)%s" % (totype, name) if pat is None else pat % name
 
 to_table = {
     'int':"PyInteger.make(%s)",
@@ -43,10 +40,7 @@ to_table = {
 
 def to_any(totype, name):
     pat = to_table.get(totype, None)
-    if pat is None:
-        return name #"(%s)%s" % (totype, name)
-    else:
-        return pat % name
+    return name if pat is None else pat % name
 
 BINOP = """
 public override PyObject __%(name)s__(PyObject other) {
@@ -84,9 +78,7 @@ class Method:
 
     def is_any(self):
         if self.ret_type != ANY or self.mods: return False
-        for p in self.param_list:
-            if not p.startswith(ANY): return False
-        return True
+        return all(p.startswith(ANY) for p in self.param_list)
 
     def is_static(self):
         return self.mods is not None
@@ -132,8 +124,13 @@ class Method:
 
         ret = ["public %sPyObject %s(%s) {" % (mods, name, string.join(params, ", "))]
         if self.ret_type == 'void':
-            ret.append("    %s(%s);" % (self.name, string.join(args, ", ")))
-            ret.append("    return Py.None;")
+            ret.extend(
+                (
+                    "    %s(%s);" % (self.name, string.join(args, ", ")),
+                    "    return Py.None;",
+                )
+            )
+
         else:
             value = "%s(%s)" % (self.name, string.join(args, ", "))
             ret.append("    return %s;" % to_any(self.ret_type, value))
@@ -153,7 +150,7 @@ class Class:
 
     def get_constant_string(self, s):
         if not self.strings.has_key(s):
-            self.strings[s] = s + "_str"
+            self.strings[s] = f'{s}_str'
 
         return self.strings[s]
 
@@ -163,8 +160,10 @@ class Class:
         for i in range(nargs):
             params.append("PyObject arg%d" % i)
             args.append("arg%d" % i)
-        ret = ["public override PyObject invoke(%s) {" % ", ".join(params)]
-        ret.append("    if (name.interned) {")
+        ret = [
+            "public override PyObject invoke(%s) {" % ", ".join(params),
+            "    if (name.interned) {",
+        ]
 
         #TODO create switch clause when more than 3-8 matches
         for method in self.methods:
@@ -177,9 +176,7 @@ class Class:
 
         if len(ret) == 2: return []
 
-        ret.append("    }")
-        ret.append("    return base.invoke(%s);" % ", ".join(args))
-        ret.append("}")
+        ret.extend(("    }", "    return base.invoke(%s);" % ", ".join(args), "}"))
         return ret
 
     def make_any_methods(self):
@@ -194,10 +191,8 @@ class Class:
             ret.extend(self.make_invoke_method(i))
         #TODO invokeN
 
-        for value, name in self.strings.items():
-            ret.append('static readonly PyString %s = PyString.intern("%s");' %
-                       (name, value))
-
+        ret.extend('static readonly PyString %s = PyString.intern("%s");' %
+                       (name, value) for value, name in self.strings.items())
         return ret
 
     def __repr__(self):

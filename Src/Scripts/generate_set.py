@@ -6,10 +6,7 @@
 from generate import generate
 
 def get_type(mutable):
-    if mutable:
-        return 'SetCollection'
-    else:
-        return 'FrozenSetCollection'
+    return 'SetCollection' if mutable else 'FrozenSetCollection'
 
 def get_arg_ts(mutable):
     return [get_type(mutable), get_type(not mutable), 'object']
@@ -18,10 +15,7 @@ def get_clrname(name):
     return ''.join(map(str.capitalize, name.split('_')))
 
 def get_items(arg_t):
-    if arg_t == 'object':
-        return 'SetStorage.GetItems(set)'
-    else:
-        return 'set._items'
+    return 'SetStorage.GetItems(set)' if arg_t == 'object' else 'set._items'
 
 def copy(cw, mutable):
     if mutable:
@@ -231,7 +225,7 @@ def gen_setops(mutable):
 
 op_symbols = [ '|', '&', '^', '-' ]
 op_names = [ 'union', 'intersection', 'symmetric_difference', 'difference' ]
-op_upnames = [ 'update' ] + map(lambda x: x + '_update', op_names[1:])
+op_upnames = [ 'update' ] + map(lambda x: f'{x}_update', op_names[1:])
 op_clrnames = [ 'BitwiseOr', 'BitwiseAnd', 'ExclusiveOr', 'Subtract' ]
 
 def gen_op(cw, t_left, t_right, symbol, name):
@@ -297,7 +291,7 @@ def gen_mutating_ops(cw):
 compares = [ '>', '<', '>=', '<=' ]
 
 def is_subset(compare):
-    return compare == '<' or compare == '<='
+    return compare in ['<', '<=']
 
 def is_strict(compare):
     return not compare.endswith('=')
@@ -307,7 +301,7 @@ def gen_comparison(cw, t, compare):
         'public static bool operator %s(%s self, object other)' %
         (compare, t)
     )
-    
+
     cw.writeline('SetStorage items;')
     cw.enter_block('if (SetStorage.GetItemsIfSet(other, out items))')
     if is_subset(compare):
@@ -316,31 +310,28 @@ def gen_comparison(cw, t, compare):
     else:
         left = 'items'
         right = 'self._items'
-    if is_strict(compare):
-        func = 'IsStrictSubset'
-    else:
-        func = 'IsSubset'
+    func = 'IsStrictSubset' if is_strict(compare) else 'IsSubset'
     cw.writeline('return %s.%s(%s);' % (left, func, right))
     cw.exit_block()
     cw.writeline()
-    
+
     cw.writeline('throw PythonOps.TypeError("can only compare to a set");')
-    
+
     cw.exit_block()
     cw.writeline()
 
 def suppress(cw, *msgs):
     if len(msgs) == 0:
         return
-    
+
     comma = ''
     res = '['
     for msg in msgs:
-        res += comma + 'System.Diagnostics.CodeAnalysis.SuppressMessage('
-        res += msg + ')'
+        res += f'{comma}System.Diagnostics.CodeAnalysis.SuppressMessage('
+        res += f'{msg})'
         comma = ' ,'
     res += ']'
-    
+
     cw.writeline(res)
 
 def gen_comparisons(cw, t):
@@ -452,20 +443,19 @@ def main():
         ('Operators', gen_ops),
         ('Interface Implementations', gen_interfaces),
     ]
-    
+
     mutable_generators = [
         ('Mutating Operators', gen_mutating_ops),
     ]
-    
+
     _generators = []
     for title, func in generators:
-        for bit in [True, False]:
-            _generators.append((
-                title + ' (' + get_type(bit) + ')',
-                func(bit)
-            ))
+        _generators.extend(
+            (f'{title} ({get_type(bit)})', func(bit)) for bit in [True, False]
+        )
+
     _generators.extend(mutable_generators)
-    
+
     return generate(*_generators)
 
 if __name__ == '__main__':

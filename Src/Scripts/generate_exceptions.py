@@ -48,8 +48,8 @@ class ExceptionInfo(object):
     def ConcreteParent(self):
         while not self.parent.fields:
             self = self.parent
-            if self.parent == None: return exceptionHierarchy
-        
+            if self.parent is None: return exceptionHierarchy
+
         return self.parent
         
     @property
@@ -59,12 +59,12 @@ class ExceptionInfo(object):
         else:
             return self.name
 
-    @property 
+    @property
     def ClrType(self):
         if not self.parent:
             return 'BaseException'
         elif self.fields:
-            return '_' + self.name
+            return f'_{self.name}'
         else:
             return self.name
     
@@ -81,9 +81,9 @@ class ExceptionInfo(object):
     @property
     def InternalPythonType(self):
         if not self.parent:
-            return 'PythonExceptions._' + self.name
+            return f'PythonExceptions._{self.name}'
         else:
-            return 'PythonExceptions.' + self.name
+            return f'PythonExceptions.{self.name}'
 
     def MakeNewException(self):
         if self.fields or self.name == 'BaseException':        
@@ -186,12 +186,7 @@ def get_all_exceps(l, curHierarchy):
     # if we have duplicate CLR exceptions (e.g. VMSError and Exception)
     # only generate the one highest in the Python hierarchy
     for exception in curHierarchy.subclasses:
-        found = False
-        for e in l:
-            if e.clrException == exception.clrException:
-                found = True
-                break
-        
+        found = any(e.clrException == exception.clrException for e in l)
         if not found:
             l.append(exception)
     for exception in curHierarchy.subclasses:
@@ -226,25 +221,25 @@ def get_compare_name(ex_info):
 
 def compare_exceptions(a, b):
     a, b = get_compare_name(a), get_compare_name(b)
-    
+
     ta = get_type(a)
     tb = get_type(b)
-    
-    if ta == None:
+
+    if ta is None:
         raise Exception("Exception class not found %s " % a)
 
-    if tb == None:
+    if tb is None:
         raise Exception("Exception class not found %s " % b)
-    
+
     if ta.IsSubclassOf(tb): return -1
     if tb.IsSubclassOf(ta): return 1
-    
+
     da = exception_distance(ta)
     db = exception_distance(tb)
-    
+
     # put exceptions further from System.Exception 1st, those further later...
     if da != db: return db - da
-    
+
     return cmp(ta.Name, tb.Name)
     
 def gen_topython_helper(cw):
@@ -321,7 +316,7 @@ public class %(name)s : %(supername)s, IPythonAwareException {
 
 def gen_one_exception(cw, e):    
     supername = getattr(exceptions, e).__bases__[0].__name__
-    if not supername in pythonExcs and supername != 'Warning':
+    if supername not in pythonExcs and supername != 'Warning':
         supername = ''
     cw.write(CLASS1, name=get_clr_name(e), supername=get_clr_name(supername), make_new_exception = get_exception_info(e, exceptionHierarchy).MakeNewException())
 
@@ -332,8 +327,7 @@ def gen_one_exception_maker(e):
     return gen_one_exception_specialized
 
 def fix_object(name):
-    if name == "object": return "@object"
-    return name
+    return "@object" if name == "object" else name
 
 def gen_one_new_exception(cw, exception, parent):
     if exception.fields:
@@ -354,24 +348,24 @@ def gen_one_new_exception(cw, exception, parent):
             cw.enter_block('public partial class _%s : _%s' % (exception.name, exception.ConcreteParent.name))
         else:
             cw.enter_block('public partial class _%s : %s' % (exception.name, exception.ConcreteParent.name))
-                
+
         for field in exception.fields:
             cw.writeline('private object _%s;' % field)
-        
+
         if exception.fields:
             cw.writeline('')
 
         cw.writeline('public _%s() : base(%s) { }' % (exception.name, exception.name))
         cw.writeline('public _%s(PythonType type) : base(type) { }' % (exception.name, ))
         cw.writeline('')
-        
+
         cw.enter_block('public new static object __new__(PythonType cls, [ParamDictionary]IDictionary<object, object> kwArgs, params object[] args)')
         cw.writeline('return Activator.CreateInstance(cls.UnderlyingSystemType, cls);')
         cw.exit_block()
         cw.writeline('')
 
-        if exception.args:        
-            argstr = ', '.join(['object ' + fix_object(x) for x in exception.args])             
+        if exception.args:
+            argstr = ', '.join([f'object {fix_object(x)}' for x in exception.args])
             cw.enter_block('public void __init__(%s)' % (argstr))
             for arg in exception.args:
                 cw.writeline('_%s = %s;' % (arg, fix_object(arg)))
@@ -385,14 +379,14 @@ def gen_one_new_exception(cw, exception, parent):
             cw.writeline('__init__(' + ', '.join([fix_object(x) for x in exception.args]) + ');')
             cw.exit_block()
             cw.writeline('')
-        
+
         for field in exception.fields:
             cw.enter_block('public object %s' % fix_object(field))
             cw.writeline('get { return _%s; }' % field)
             cw.writeline('set { _%s = value; }' % field)
             cw.exit_block()
             cw.writeline('')
-        
+
         cw.exit_block()
         cw.writeline('')
 
@@ -408,7 +402,7 @@ def gen_one_new_exception(cw, exception, parent):
         cw.exit_block()
         cw.exit_block()
         cw.writeline()
-        
+
     for child in exception.subclasses:
         gen_one_new_exception(cw, child, exception)
             
@@ -429,10 +423,7 @@ def module_gen(cw):
 
 def gen_one_exception_builtin_entry(cw, exception, parent):
     cw.enter_block("public static PythonType %s" % (exception.name, ))
-    if exception.fields:
-        cw.write('get { return %s; }' % (exception.InternalPythonType, ))
-    else:
-        cw.write('get { return %s; }' % (exception.InternalPythonType, ))
+    cw.write('get { return %s; }' % (exception.InternalPythonType, ))
     cw.exit_block()
 
     for child in exception.subclasses:
@@ -450,9 +441,7 @@ def main():
         ("builtin exceptions", builtin_gen),
     ]
 
-    for e in pythonExcs:
-        gens.append((get_clr_name(e), gen_one_exception_maker(e)))
-
+    gens.extend((get_clr_name(e), gen_one_exception_maker(e)) for e in pythonExcs)
     return generate(*gens)
 
 if __name__ == "__main__":

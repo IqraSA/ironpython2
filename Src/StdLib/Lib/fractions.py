@@ -124,18 +124,15 @@ class Fraction(Rational):
                     raise ValueError('Invalid literal for Fraction: %r' %
                                      numerator)
                 numerator = int(m.group('num') or '0')
-                denom = m.group('denom')
-                if denom:
+                if denom := m.group('denom'):
                     denominator = int(denom)
                 else:
                     denominator = 1
-                    decimal = m.group('decimal')
-                    if decimal:
+                    if decimal := m.group('decimal'):
                         scale = 10**len(decimal)
                         numerator = numerator * scale + int(decimal)
                         denominator *= scale
-                    exp = m.group('exp')
-                    if exp:
+                    if exp := m.group('exp'):
                         exp = int(exp)
                         if exp >= 0:
                             numerator *= 10**exp
@@ -198,10 +195,7 @@ class Fraction(Rational):
         digits = int(''.join(map(str, digits)))
         if sign:
             digits = -digits
-        if exp >= 0:
-            return cls(digits * 10 ** exp)
-        else:
-            return cls(digits, 10 ** -exp)
+        return cls(digits * 10 ** exp) if exp >= 0 else cls(digits, 10 ** -exp)
 
     def limit_denominator(self, max_denominator=1000000):
         """Closest Fraction to self with denominator at most max_denominator.
@@ -253,10 +247,7 @@ class Fraction(Rational):
         k = (max_denominator-q0)//q1
         bound1 = Fraction(p0+k*p1, q0+k*q1)
         bound2 = Fraction(p1, q1)
-        if abs(bound2 - self) <= abs(bound1-self):
-            return bound2
-        else:
-            return bound1
+        return bound2 if abs(bound2 - self) <= abs(bound1-self) else bound1
 
     @property
     def numerator(a):
@@ -456,21 +447,19 @@ class Fraction(Rational):
         result will be rational.
 
         """
-        if isinstance(b, Rational):
-            if b.denominator == 1:
-                power = b.numerator
-                if power >= 0:
-                    return Fraction(a._numerator ** power,
-                                    a._denominator ** power)
-                else:
-                    return Fraction(a._denominator ** -power,
-                                    a._numerator ** -power)
-            else:
-                # A fractional power will generally produce an
-                # irrational number.
-                return float(a) ** float(b)
-        else:
+        if not isinstance(b, Rational):
             return float(a) ** b
+        if b.denominator != 1:
+            # A fractional power will generally produce an
+            # irrational number.
+            return float(a) ** float(b)
+        power = b.numerator
+        if power >= 0:
+            return Fraction(a._numerator ** power,
+                            a._denominator ** power)
+        else:
+            return Fraction(a._denominator ** -power,
+                            a._numerator ** -power)
 
     def __rpow__(b, a):
         """a ** b"""
@@ -535,7 +524,7 @@ class Fraction(Rational):
             if math.isnan(b) or math.isinf(b):
                 # comparisons with an infinity or nan should behave in
                 # the same way for any finite a, so treat a as zero.
-                return 0.0 == b
+                return b == 0.0
             else:
                 return a == a.from_float(b)
         else:

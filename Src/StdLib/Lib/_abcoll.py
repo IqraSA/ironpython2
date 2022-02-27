@@ -62,9 +62,8 @@ class Iterable:
 
     @classmethod
     def __subclasshook__(cls, C):
-        if cls is Iterable:
-            if _hasattr(C, "__iter__"):
-                return True
+        if cls is Iterable and _hasattr(C, "__iter__"):
+            return True
         return NotImplemented
 
 Iterable.register(str)
@@ -82,9 +81,8 @@ class Iterator(Iterable):
 
     @classmethod
     def __subclasshook__(cls, C):
-        if cls is Iterator:
-            if _hasattr(C, "next") and _hasattr(C, "__iter__"):
-                return True
+        if cls is Iterator and _hasattr(C, "next") and _hasattr(C, "__iter__"):
+            return True
         return NotImplemented
 
 
@@ -97,9 +95,8 @@ class Sized:
 
     @classmethod
     def __subclasshook__(cls, C):
-        if cls is Sized:
-            if _hasattr(C, "__len__"):
-                return True
+        if cls is Sized and _hasattr(C, "__len__"):
+            return True
         return NotImplemented
 
 
@@ -112,9 +109,8 @@ class Container:
 
     @classmethod
     def __subclasshook__(cls, C):
-        if cls is Container:
-            if _hasattr(C, "__contains__"):
-                return True
+        if cls is Container and _hasattr(C, "__contains__"):
+            return True
         return NotImplemented
 
 
@@ -127,9 +123,8 @@ class Callable:
 
     @classmethod
     def __subclasshook__(cls, C):
-        if cls is Callable:
-            if _hasattr(C, "__call__"):
-                return True
+        if cls is Callable and _hasattr(C, "__call__"):
+            return True
         return NotImplemented
 
 
@@ -152,10 +147,7 @@ class Set(Sized, Iterable, Container):
             return NotImplemented
         if len(self) > len(other):
             return False
-        for elem in self:
-            if elem not in other:
-                return False
-        return True
+        return all(elem in other for elem in self)
 
     def __lt__(self, other):
         if not isinstance(other, Set):
@@ -172,10 +164,7 @@ class Set(Sized, Iterable, Container):
             return NotImplemented
         if len(self) < len(other):
             return False
-        for elem in other:
-            if elem not in self:
-                return False
-        return True
+        return all(elem in self for elem in other)
 
     def __eq__(self, other):
         if not isinstance(other, Set):
@@ -203,10 +192,7 @@ class Set(Sized, Iterable, Container):
 
     def isdisjoint(self, other):
         'Return True if two sets have a null intersection.'
-        for value in other:
-            if value in self:
-                return False
-        return True
+        return all(value not in self for value in other)
 
     def __or__(self, other):
         if not isinstance(other, Iterable):
@@ -450,8 +436,7 @@ class KeysView(MappingView, Set):
         return key in self._mapping
 
     def __iter__(self):
-        for key in self._mapping:
-            yield key
+        yield from self._mapping
 
 KeysView.register(type({}.viewkeys()))
 
@@ -479,10 +464,7 @@ ItemsView.register(type({}.viewitems()))
 class ValuesView(MappingView):
 
     def __contains__(self, value):
-        for key in self._mapping:
-            if value == self._mapping[key]:
-                return True
-        return False
+        return any(value == self._mapping[key] for key in self._mapping)
 
     def __iter__(self):
         for key in self._mapping:
@@ -602,17 +584,13 @@ class Sequence(Sized, Iterable, Container):
         i = 0
         try:
             while True:
-                v = self[i]
-                yield v
+                yield self[i]
                 i += 1
         except IndexError:
             return
 
     def __contains__(self, value):
-        for v in self:
-            if v == value:
-                return True
-        return False
+        return any(v == value for v in self)
 
     def __reversed__(self):
         for i in reversed(range(len(self))):
@@ -629,7 +607,7 @@ class Sequence(Sized, Iterable, Container):
 
     def count(self, value):
         'S.count(value) -> integer -- return number of occurrences of value'
-        return sum(1 for v in self if v == value)
+        return sum(v == value for v in self)
 
 Sequence.register(tuple)
 Sequence.register(basestring)

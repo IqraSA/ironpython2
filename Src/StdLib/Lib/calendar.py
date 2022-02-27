@@ -186,8 +186,7 @@ class Calendar(object):
         days_before = (day1 - self.firstweekday) % 7
         for _ in range(days_before):
             yield 0
-        for d in range(1, ndays + 1):
-            yield d
+        yield from range(1, ndays + 1)
         days_after = (self.firstweekday - day1 - ndays) % 7
         for _ in range(days_after):
             yield 0
@@ -273,10 +272,7 @@ class TextCalendar(Calendar):
         """
         Returns a formatted day.
         """
-        if day == 0:
-            s = ''
-        else:
-            s = '%2i' % day             # right-align single-digit days
+        s = '' if day == 0 else '%2i' % day
         return s.center(width)
 
     def formatweek(self, theweek, width):
@@ -289,10 +285,7 @@ class TextCalendar(Calendar):
         """
         Returns a formatted week day name.
         """
-        if width >= 9:
-            names = day_name
-        else:
-            names = day_abbr
+        names = day_name if width >= 9 else day_abbr
         return names[day][:width].center(width)
 
     def formatweekheader(self, width):
@@ -515,10 +508,7 @@ class LocaleTextCalendar(TextCalendar):
 
     def formatweekday(self, day, width):
         with TimeEncoding(self.locale) as encoding:
-            if width >= 9:
-                names = day_name
-            else:
-                names = day_abbr
+            names = day_name if width >= 9 else day_abbr
             name = names[day]
             if encoding is not None:
                 name = name.decode(encoding)
@@ -614,8 +604,7 @@ def timegm(tuple):
     days = datetime.date(year, month, 1).toordinal() - _EPOCH_ORD + day - 1
     hours = days*24 + hour
     minutes = hours*60 + minute
-    seconds = minutes*60 + second
-    return seconds
+    return minutes*60 + second
 
 
 def main(args):

@@ -170,10 +170,7 @@ def _read_ushort(file):
 
 def _read_string(file):
     length = ord(file.read(1))
-    if length == 0:
-        data = ''
-    else:
-        data = file.read(length)
+    data = '' if length == 0 else file.read(length)
     if length & 1 == 0:
         dummy = file.read(1)
     return data
@@ -404,9 +401,7 @@ class Aifc_read:
               self.getcomptype(), self.getcompname()
 
     def getmarkers(self):
-        if len(self._markers) == 0:
-            return None
-        return self._markers
+        return None if len(self._markers) == 0 else self._markers
 
     def getmark(self, id):
         for marker in self._markers:
@@ -424,8 +419,7 @@ class Aifc_read:
         if self._ssnd_seek_needed:
             self._ssnd_chunk.seek(0)
             dummy = self._ssnd_chunk.read(8)
-            pos = self._soundpos * self._framesize
-            if pos:
+            if pos := self._soundpos * self._framesize:
                 self._ssnd_chunk.seek(pos + 8)
             self._ssnd_seek_needed = 0
         if nframes == 0:
@@ -581,10 +575,7 @@ class Aifc_write:
             # else, assume it is an open file object already
             filename = '???'
         self.initfp(f)
-        if filename[-5:] == '.aiff':
-            self._aifc = 0
-        else:
-            self._aifc = 1
+        self._aifc = 0 if filename[-5:] == '.aiff' else 1
 
     def initfp(self, file):
         self._file = file
@@ -722,9 +713,7 @@ class Aifc_write:
         raise Error, 'marker %r does not exist' % (id,)
 
     def getmarkers(self):
-        if len(self._markers) == 0:
-            return None
-        return self._markers
+        return None if len(self._markers) == 0 else self._markers
 
     def tell(self):
         return self._nframeswritten
@@ -943,7 +932,7 @@ class Aifc_write:
             id, pos, name = marker
             length = length + len(name) + 1 + 6
             if len(name) & 1 == 0:
-                length = length + 1
+                length += 1
         _write_ulong(self._file, length)
         self._marklength = length + 8
         _write_short(self._file, len(self._markers))
